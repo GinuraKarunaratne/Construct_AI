@@ -147,7 +147,7 @@ export default function SchedulePage() {
           <div className="card overflow-hidden">
             <div className="flex">
               {/* Left: task names */}
-              <div className="w-[260px] flex-shrink-0 border-r border-stone-200">
+              <div className="w-[300px] flex-shrink-0 border-r border-stone-200">
                 <div className="h-10 px-4 flex items-center border-b border-stone-200 bg-stone-50">
                   <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
                     Task
@@ -161,10 +161,13 @@ export default function SchedulePage() {
                       i % 2 === 0 ? "bg-white" : "bg-stone-50/50"
                     )}
                   >
-                    <span className="text-sm text-stone-700 truncate flex-1">
+                    <span
+                      className="text-sm text-stone-700 flex-1 min-w-0 leading-tight"
+                      title={task.name}
+                    >
                       {task.name}
                     </span>
-                    <Badge label={task.status} variant={task.status} className="text-[10px]" />
+                    <Badge label={task.status} variant={task.status} className="text-[10px] flex-shrink-0" />
                   </div>
                 ))}
               </div>

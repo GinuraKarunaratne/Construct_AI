@@ -7,7 +7,19 @@ import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Plus, MapPin, FolderOpen, AlertTriangle } from "lucide-react";
+import { Plus, MapPin, FolderOpen, AlertTriangle, CalendarClock, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function formatProjectId(id: number): string {
+  return `PROJ-${String(id).padStart(4, "0")}`;
+}
+
+function daysRemaining(endDate: string | null | undefined): number | null {
+  if (!endDate) return null;
+  return Math.round(
+    (new Date(endDate).getTime() - Date.now()) / 86_400_000
+  );
+}
 
 export default function ProjectsPage() {
   const qc = useQueryClient();
@@ -99,48 +111,83 @@ export default function ProjectsPage() {
                   )
                 : null;
 
+            const remaining = daysRemaining(p.planned_end_date);
+            const isOverdue = remaining !== null && remaining < 0;
+            const isDueSoon = remaining !== null && remaining >= 0 && remaining <= 14;
+
             return (
               <div
                 key={p.id}
-                className="card hover:shadow-md transition-shadow duration-150"
+                className={cn(
+                  "card hover:shadow-md transition-shadow duration-150",
+                  isOverdue && "border-red-200 bg-red-50/30"
+                )}
               >
                 <div className="p-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                      <h2 className="font-semibold text-stone-900">{p.name}</h2>
-                      {p.location_name && (
-                        <p className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
-                          <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={2} />
-                          {p.location_name}
-                        </p>
-                      )}
+                  {/* Top row: ID + status */}
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[11px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                        {formatProjectId(p.id)}
+                      </span>
+                      <Badge label={p.status} variant={p.status} />
                     </div>
-                    <Badge label={p.status} variant={p.status} />
+                    {isOverdue && (
+                      <span className="flex items-center gap-1 text-[11px] text-red-600 font-semibold flex-shrink-0">
+                        <AlertTriangle className="w-3 h-3" strokeWidth={2.5} />
+                        Overdue
+                      </span>
+                    )}
+                    {isDueSoon && !isOverdue && (
+                      <span className="flex items-center gap-1 text-[11px] text-amber-600 font-semibold flex-shrink-0">
+                        <Clock className="w-3 h-3" strokeWidth={2.5} />
+                        Due in {remaining}d
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Name + location */}
+                  <div className="mb-3">
+                    <h2 className="font-bold text-stone-900 text-base leading-tight">{p.name}</h2>
+                    {p.location_name && (
+                      <p className="flex items-center gap-1 text-xs text-stone-500 mt-1">
+                        <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={2} />
+                        {p.location_name}
+                      </p>
+                    )}
                   </div>
 
                   {p.description && (
-                    <p className="text-sm text-stone-500 mb-3 leading-relaxed">
+                    <p className="text-sm text-stone-500 mb-3 leading-relaxed line-clamp-2">
                       {p.description}
                     </p>
                   )}
 
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-stone-100 text-sm">
+                  {/* Metrics grid */}
+                  <div className="grid grid-cols-4 gap-2 pt-3 border-t border-stone-100 text-sm">
                     <div>
-                      <p className="text-xs text-stone-400 mb-0.5">Budget</p>
-                      <p className="font-semibold text-stone-800">
+                      <p className="text-[11px] text-stone-400 mb-0.5">Budget</p>
+                      <p className="font-semibold text-stone-800 text-xs">
                         {formatCurrency(p.total_budget)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-stone-400 mb-0.5">Start</p>
-                      <p className="font-medium text-stone-700">
+                      <p className="text-[11px] text-stone-400 mb-0.5">Start</p>
+                      <p className="font-medium text-stone-600 text-xs">
                         {p.planned_start_date ? formatDate(p.planned_start_date) : "—"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-stone-400 mb-0.5">Duration</p>
-                      <p className="font-medium text-stone-700">
-                        {totalDays != null ? `${totalDays} days` : "—"}
+                      <p className="text-[11px] text-stone-400 mb-0.5">End</p>
+                      <p className={cn("font-medium text-xs", isOverdue ? "text-red-600" : "text-stone-600")}>
+                        {p.planned_end_date ? formatDate(p.planned_end_date) : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-stone-400 mb-0.5">Duration</p>
+                      <p className="font-medium text-stone-600 text-xs flex items-center gap-1">
+                        <CalendarClock className="w-3 h-3 text-stone-400" strokeWidth={2} />
+                        {totalDays != null ? `${totalDays}d` : "—"}
                       </p>
                     </div>
                   </div>

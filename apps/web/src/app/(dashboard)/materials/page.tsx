@@ -7,8 +7,9 @@ import { materialsApi, TransactionCreate } from "@/services/materials";
 import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getStockStatus, STOCK_STATUS_META } from "@/lib/utils";
 import { AlertTriangle, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TXN_TYPES = ["delivery", "issue", "return", "wastage", "adjustment"] as const;
 
@@ -47,6 +48,7 @@ export default function MaterialsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["materials", projectId] });
       qc.invalidateQueries({ queryKey: ["transactions", projectId] });
+      qc.invalidateQueries({ queryKey: ["dashboard", projectId] });
       setTxnModal(false);
       setTxnErr(null);
     },
@@ -82,8 +84,24 @@ export default function MaterialsPage() {
 
   if (projLoading || isLoading) return <LoadingSpinner message="Loading materials…" />;
 
-  const lowStockItems  = (materials ?? []).filter((m) => m.is_low_stock);
   const selectedMaterial = materials?.find((m) => m.id === selectedMaterialId);
+
+  // Compute stock status for every material
+  const materialsWithStatus = (materials ?? []).map((m) => ({
+    ...m,
+    stockStatus: getStockStatus(m.current_stock, m.reorder_level),
+  }));
+
+  // Items needing attention — sorted: out_of_stock first, then low_stock, then at_reorder
+  const URGENCY_ORDER: Record<string, number> = {
+    out_of_stock: 0,
+    low_stock:    1,
+    at_reorder:   2,
+    in_stock:     99,
+  };
+  const urgentItems = materialsWithStatus
+    .filter((m) => m.stockStatus !== "in_stock")
+    .sort((a, b) => URGENCY_ORDER[a.stockStatus] - URGENCY_ORDER[b.stockStatus]);
 
   return (
     <div className="space-y-6">
@@ -92,28 +110,48 @@ export default function MaterialsPage() {
         <div>
           <h1 className="page-title">Materials</h1>
           <p className="page-subtitle">
-            {materials?.length ?? 0} items &middot; {lowStockItems.length} low stock
+            {materials?.length ?? 0} items &middot; {urgentItems.length} need attention
           </p>
         </div>
       </div>
 
-      {/* Low stock banner */}
-      {lowStockItems.length > 0 && (
+      {/* Stock attention banner */}
+      {urgentItems.length > 0 && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" strokeWidth={2} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-800">
-              {lowStockItems.length} item{lowStockItems.length !== 1 ? "s" : ""} below reorder level
+              {urgentItems.filter((m) => m.stockStatus === "out_of_stock").length > 0 && (
+                <span className="text-red-700">
+                  {urgentItems.filter((m) => m.stockStatus === "out_of_stock").length} out of stock ·{" "}
+                </span>
+              )}
+              {urgentItems.filter((m) => m.stockStatus === "low_stock").length > 0 && (
+                <span>
+                  {urgentItems.filter((m) => m.stockStatus === "low_stock").length} low stock ·{" "}
+                </span>
+              )}
+              {urgentItems.filter((m) => m.stockStatus === "at_reorder").length > 0 && (
+                <span className="text-amber-700">
+                  {urgentItems.filter((m) => m.stockStatus === "at_reorder").length} at reorder level
+                </span>
+              )}
             </p>
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {lowStockItems.map((m) => (
-                <span
-                  key={m.id}
-                  className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md text-xs font-medium"
-                >
-                  {m.name} — {m.current_stock.toFixed(0)} {m.unit}
-                </span>
-              ))}
+              {urgentItems.map((m) => {
+                const meta = STOCK_STATUS_META[m.stockStatus];
+                return (
+                  <span
+                    key={m.id}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-xs font-semibold border",
+                      meta.chipClass
+                    )}
+                  >
+                    {m.name} — {m.current_stock <= 0 ? "0" : m.current_stock.toFixed(0)} {m.unit}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -124,7 +162,7 @@ export default function MaterialsPage() {
         <div className="card-header">
           <h2 className="card-title">Inventory</h2>
         </div>
-        {(materials ?? []).length === 0 ? (
+        {materialsWithStatus.length === 0 ? (
           <EmptyState title="No materials found" description="Add materials to start tracking inventory." />
         ) : (
           <div className="overflow-x-auto">
@@ -133,51 +171,59 @@ export default function MaterialsPage() {
                 <tr>
                   <th>Material</th>
                   <th>Category</th>
-                  <th className="th-right">Current Stock</th>
-                  <th className="th-right">Reorder Level</th>
+                  <th className="th-right">Stock</th>
+                  <th className="th-right">Reorder At</th>
                   <th className="th-right">Unit Cost</th>
                   <th>Status</th>
                   <th className="th-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {(materials ?? []).map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <p className="font-semibold text-stone-800">{m.name}</p>
-                      <p className="text-xs text-stone-400 mt-0.5">{m.unit}</p>
-                    </td>
-                    <td className="text-stone-500">{m.category ?? "—"}</td>
-                    <td className="td-right">
-                      <span className={m.is_low_stock ? "font-bold text-red-600" : "font-semibold text-stone-800"}>
-                        {m.current_stock.toFixed(0)}
-                      </span>
-                      <span className="text-stone-400 ml-1 text-xs">{m.unit}</span>
-                    </td>
-                    <td className="td-right text-stone-500">
-                      {m.reorder_level} {m.unit}
-                    </td>
-                    <td className="td-right text-stone-600">
-                      {formatCurrency(m.unit_cost_estimate)}
-                    </td>
-                    <td>
-                      {m.is_low_stock ? (
-                        <Badge label="Low Stock" variant="critical" />
-                      ) : (
-                        <Badge label="In Stock" variant="success" />
-                      )}
-                    </td>
-                    <td className="td-right">
-                      <button
-                        onClick={() => openTxn(m.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
-                      >
-                        <Plus className="w-3 h-3" strokeWidth={2.5} />
-                        Transaction
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {materialsWithStatus.map((m) => {
+                  const meta = STOCK_STATUS_META[m.stockStatus];
+                  const isUrgent = m.stockStatus === "out_of_stock" || m.stockStatus === "low_stock";
+                  return (
+                    <tr key={m.id}>
+                      <td>
+                        <p className={cn("font-semibold", isUrgent ? "text-red-700" : "text-stone-800")}>
+                          {m.name}
+                        </p>
+                        <p className="text-xs text-stone-400 mt-0.5">{m.unit}</p>
+                      </td>
+                      <td className="text-stone-500">{m.category ?? "—"}</td>
+                      <td className="td-right">
+                        <span className={cn(
+                          "font-bold tabular-nums",
+                          m.stockStatus === "out_of_stock" ? "text-red-600"
+                          : m.stockStatus === "low_stock"   ? "text-red-500"
+                          : m.stockStatus === "at_reorder"  ? "text-amber-600"
+                          : "text-stone-800"
+                        )}>
+                          {m.current_stock.toFixed(0)}
+                        </span>
+                        <span className="text-stone-400 ml-1 text-xs">{m.unit}</span>
+                      </td>
+                      <td className="td-right text-stone-500 tabular-nums">
+                        {m.reorder_level} {m.unit}
+                      </td>
+                      <td className="td-right text-stone-600 tabular-nums">
+                        {formatCurrency(m.unit_cost_estimate)}
+                      </td>
+                      <td>
+                        <Badge label={meta.label} variant={meta.badgeVariant} />
+                      </td>
+                      <td className="td-right">
+                        <button
+                          onClick={() => openTxn(m.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
+                        >
+                          <Plus className="w-3 h-3" strokeWidth={2.5} />
+                          Update Stock
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -243,7 +289,7 @@ export default function MaterialsPage() {
       <Modal
         open={txnModal}
         onClose={() => setTxnModal(false)}
-        title={`Record Transaction — ${selectedMaterial?.name ?? ""}`}
+        title={`Update Stock — ${selectedMaterial?.name ?? ""}`}
       >
         <form onSubmit={handleTxnSubmit} className="space-y-4">
           {txnErr && (
@@ -267,7 +313,11 @@ export default function MaterialsPage() {
             >
               {TXN_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === "delivery"   ? "Stock Received (Delivery)"
+                  : t === "issue"     ? "Stock Used (Issue)"
+                  : t === "return"    ? "Stock Returned"
+                  : t === "wastage"   ? "Damaged / Wasted"
+                  : "Stock Correction (Adjustment)"}
                 </option>
               ))}
             </select>
@@ -358,7 +408,7 @@ export default function MaterialsPage() {
               {addTxn.isPending && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-              Save Transaction
+              Save
             </button>
           </div>
         </form>

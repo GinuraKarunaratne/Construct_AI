@@ -7,7 +7,7 @@ import { alertsApi } from "@/services/alerts";
 import { costsApi } from "@/services/costs";
 import { StatCard } from "@/components/ui/StatCard";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCompact } from "@/lib/utils";
 import {
   Wallet,
   TrendingUp,
@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Info,
   CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,14 @@ const SEVERITY_CONFIG = {
     dot:  "bg-sky-500",
     iconColor: "text-sky-500",
   },
+};
+
+/** Per-alert-type quick action */
+const ALERT_QUICK_ACTIONS: Record<string, { label: string; href: string }> = {
+  low_stock:      { label: "View Materials", href: "/materials" },
+  task_delayed:   { label: "View Schedule",  href: "/schedule"  },
+  budget_overrun: { label: "View Costs",     href: "/costs"     },
+  weather_risk:   { label: "View Schedule",  href: "/schedule"  },
 };
 
 export default function DashboardPage() {
@@ -98,6 +107,22 @@ export default function DashboardPage() {
       )
     : 0;
 
+  /** Project is past its end date but not complete */
+  const isOverdue = p.planned_end_date
+    ? Date.now() > new Date(p.planned_end_date).getTime() && dash.progress_pct < 99
+    : false;
+
+  /** Attendance not yet recorded vs genuinely absent */
+  const attendanceRecorded = dash.today_attendance > 0;
+  const attendanceSub = attendanceRecorded
+    ? `${dash.workers_count - dash.today_attendance} absent today`
+    : "Attendance not yet recorded";
+  const attendanceTone = attendanceRecorded
+    ? dash.today_attendance < dash.workers_count
+      ? ("amber" as const)
+      : ("green" as const)
+    : ("neutral" as const);
+
   const stats = [
     {
       label: "Total Budget",
@@ -116,8 +141,10 @@ export default function DashboardPage() {
     {
       label: "Schedule Progress",
       value: `${dash.progress_pct.toFixed(0)}%`,
-      sub: `Day ${Math.min(daysPassed, totalDays)} of ${totalDays}`,
-      tone: "violet" as const,
+      sub: isOverdue
+        ? `Project overdue — only ${dash.progress_pct.toFixed(0)}% complete`
+        : `Day ${Math.min(daysPassed, totalDays)} of ${totalDays}`,
+      tone: isOverdue ? ("red" as const) : ("violet" as const),
       Icon: CalendarClock,
     },
     {
@@ -130,8 +157,8 @@ export default function DashboardPage() {
     {
       label: "Today's Attendance",
       value: `${dash.today_attendance} / ${dash.workers_count}`,
-      sub: `${dash.workers_count - dash.today_attendance} absent today`,
-      tone: "sky" as const,
+      sub: attendanceSub,
+      tone: attendanceTone,
       Icon: HardHat,
     },
     {
@@ -144,6 +171,9 @@ export default function DashboardPage() {
   ];
 
   const unreadAlerts = (alerts ?? []).filter((a) => !a.is_read).slice(0, 4);
+
+  // Overrun amount for prediction
+  const overrunAmount = pred ? pred.predicted_final_cost - dash.total_budget : 0;
 
   return (
     <div className="space-y-6">
@@ -158,12 +188,31 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Overdue critical banner */}
+      {isOverdue && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" strokeWidth={2} />
+          <div>
+            <p className="font-bold text-red-800 text-sm">Critical Schedule Delay</p>
+            <p className="text-sm text-red-600 mt-0.5">
+              This project has passed its planned end date with only{" "}
+              <span className="font-semibold">{dash.progress_pct.toFixed(0)}%</span> completion.{" "}
+              {dash.delayed_tasks > 0 && `${dash.delayed_tasks} task${dash.delayed_tasks > 1 ? "s are" : " is"} delayed.`}
+            </p>
+            <Link href="/schedule" className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-red-700 hover:text-red-900 transition-colors">
+              Review schedule <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Active alerts */}
       {unreadAlerts.length > 0 && (
         <div className="space-y-2">
           {unreadAlerts.map((a) => {
             const cfg = SEVERITY_CONFIG[a.severity] ?? SEVERITY_CONFIG.info;
             const AlertIcon = cfg.icon;
+            const action = ALERT_QUICK_ACTIONS[a.alert_type];
             return (
               <div
                 key={a.id}
@@ -181,6 +230,14 @@ export default function DashboardPage() {
                   <p className="opacity-80 text-xs mt-0.5 leading-relaxed">
                     {a.message}
                   </p>
+                  {action && (
+                    <Link
+                      href={action.href}
+                      className="inline-flex items-center gap-1 mt-1.5 text-xs font-semibold opacity-70 hover:opacity-100 transition-opacity"
+                    >
+                      {action.label} <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  )}
                 </div>
                 <button
                   onClick={() => markRead.mutate(a.id)}
@@ -248,12 +305,8 @@ export default function DashboardPage() {
                 {dash.delayed_tasks} delayed
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-sm bg-stone-300 inline-block" />
-                {Math.max(
-                  0,
-                  dash.task_count - dash.completed_tasks - dash.delayed_tasks
-                )}{" "}
-                pending
+                <span className="w-2 h-2 rounded-sm bg-brand-400 inline-block" />
+                {Math.max(0, dash.task_count - dash.completed_tasks - dash.delayed_tasks)} pending
               </span>
             </div>
           </div>
@@ -302,23 +355,28 @@ export default function DashboardPage() {
             {pred && (
               <div
                 className={cn(
-                  "flex items-center gap-2.5 mt-2 px-3.5 py-2.5 rounded-lg text-xs font-medium",
+                  "flex items-start gap-2.5 mt-2 px-3.5 py-2.5 rounded-lg text-xs font-medium",
                   pred.overrun_risk
                     ? "bg-red-50 text-red-700 border border-red-200"
                     : "bg-green-50 text-green-700 border border-green-200"
                 )}
               >
                 {pred.overrun_risk ? (
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" strokeWidth={2} />
                 ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" strokeWidth={2} />
                 )}
-                <span>
-                  {pred.overrun_risk ? "Budget overrun risk" : "On budget"} — Predicted:{" "}
-                  <span className="font-bold">
-                    {formatCurrency(pred.predicted_final_cost)}
+                <div>
+                  <span>
+                    {pred.overrun_risk ? "Budget overrun risk" : "On budget"} — Predicted:{" "}
+                    <span className="font-bold">{formatCompact(pred.predicted_final_cost)}</span>
                   </span>
-                </span>
+                  {pred.overrun_risk && overrunAmount > 0 && (
+                    <p className="mt-0.5 opacity-80">
+                      +{formatCompact(overrunAmount)} projected over budget
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

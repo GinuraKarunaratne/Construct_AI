@@ -8,7 +8,7 @@ import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Banknote, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Banknote, AlertTriangle, CheckCircle2, FileText, Users } from "lucide-react";
 
 export default function PayrollPage() {
   const qc = useQueryClient();
@@ -75,6 +75,10 @@ export default function PayrollPage() {
     ? detailRun.lines.reduce((sum, l) => sum + l.net_pay, 0)
     : null;
 
+  // Summary stats from run list
+  const approvedRuns = (runs ?? []).filter((r) => r.status === "approved").length;
+  const draftRuns    = (runs ?? []).filter((r) => r.status === "draft").length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -94,6 +98,57 @@ export default function PayrollPage() {
         </button>
       </div>
 
+      {/* Summary chips */}
+      {(runs ?? []).length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            {
+              label: "Total Runs",
+              value: String(runs?.length ?? 0),
+              icon: FileText,
+              bg: "bg-stone-50 border-stone-200 text-stone-700",
+              iconBg: "bg-stone-100 text-stone-500",
+            },
+            {
+              label: "Approved",
+              value: String(approvedRuns),
+              icon: CheckCircle2,
+              bg: "bg-green-50 border-green-200 text-green-800",
+              iconBg: "bg-green-100 text-green-600",
+            },
+            {
+              label: "Draft",
+              value: String(draftRuns),
+              icon: FileText,
+              bg: "bg-amber-50 border-amber-200 text-amber-800",
+              iconBg: "bg-amber-100 text-amber-600",
+            },
+            {
+              label: "Workers Registered",
+              value: String(workers?.length ?? 0),
+              icon: Users,
+              bg: "bg-brand-50 border-brand-200 text-brand-800",
+              iconBg: "bg-brand-100 text-brand-600",
+            },
+          ].map((chip) => (
+            <div
+              key={chip.label}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${chip.bg}`}
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${chip.iconBg}`}>
+                <chip.icon className="w-4 h-4" strokeWidth={2} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                  {chip.label}
+                </p>
+                <p className="text-xl font-bold leading-tight">{chip.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Runs list */}
       <div className="card">
         <div className="card-header">
@@ -111,20 +166,21 @@ export default function PayrollPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Run</th>
                   <th>Period</th>
                   <th>Status</th>
-                  <th className="th-right">Action</th>
+                  <th className="th-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(runs ?? []).map((run) => (
                   <tr key={run.id}>
+                    <td className="font-mono text-xs text-stone-400">
+                      #{run.id}
+                    </td>
                     <td>
                       <p className="font-semibold text-stone-800">
                         {run.period_start} → {run.period_end}
-                      </p>
-                      <p className="text-xs text-stone-400 mt-0.5">
-                        Run #{run.id}
                       </p>
                     </td>
                     <td>
@@ -136,7 +192,7 @@ export default function PayrollPage() {
                           onClick={() => setDetailRunId(run.id)}
                           className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
                         >
-                          View
+                          View Details
                         </button>
                         {run.status === "draft" && (
                           <button
@@ -231,7 +287,6 @@ export default function PayrollPage() {
                       </tr>
                     );
                   })}
-                  {/* Total row */}
                   <tr className="border-t-2 border-stone-200 bg-stone-50">
                     <td className="px-5 py-3 font-semibold text-stone-700" colSpan={5}>
                       Total

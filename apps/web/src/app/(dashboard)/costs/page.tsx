@@ -7,7 +7,7 @@ import { costsApi, ExpenseCreate } from "@/services/costs";
 import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCompact } from "@/lib/utils";
 import { Plus, AlertTriangle, CheckCircle2, TrendingUp, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +78,7 @@ export default function CostsPage() {
     mutationFn: () => costsApi.runPrediction(projectId!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prediction", projectId] });
+      qc.invalidateQueries({ queryKey: ["dashboard", projectId] });
     },
   });
 
@@ -98,11 +99,12 @@ export default function CostsPage() {
       ? "bg-amber-500"
       : "bg-brand-500";
 
-  // Group expenses by category
-  const expByCategory: Record<string, number> = {};
-  (expenses ?? []).forEach((e) => {
-    expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount;
-  });
+  // Overrun calculations
+  const overrunAmount = prediction
+    ? prediction.predicted_final_cost - summary.total_budget
+    : 0;
+  const overrunPct = summary.total_budget ? (overrunAmount / summary.total_budget) * 100 : 0;
+  const lowConfidence = prediction && prediction.confidence_score < 60;
 
   return (
     <div className="space-y-6">
@@ -110,7 +112,7 @@ export default function CostsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Costs</h1>
-          <p className="page-subtitle">Budget tracking and cost prediction</p>
+          <p className="page-subtitle">Budget tracking and cost forecast</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -123,7 +125,7 @@ export default function CostsPage() {
             ) : (
               <BarChart3 className="w-4 h-4" strokeWidth={2} />
             )}
-            Run Prediction
+            Run Cost Forecast
           </button>
           <button
             onClick={() => { setExpErr(null); setExpModal(true); }}
@@ -141,26 +143,26 @@ export default function CostsPage() {
           {
             label: "Total Budget",
             value: formatCurrency(summary.total_budget),
-            sub: null,
             valueClass: "text-stone-800",
+            sub: null as string | null,
           },
           {
             label: "Actual Cost to Date",
             value: formatCurrency(summary.actual_cost_to_date),
-            sub: null,
             valueClass: "text-brand-700",
+            sub: null as string | null,
           },
           {
             label: "Remaining Budget",
             value: formatCurrency(summary.remaining_budget),
-            sub: null,
             valueClass: summary.remaining_budget < 0 ? "text-red-600" : "text-green-700",
+            sub: summary.remaining_budget < 0 ? "Budget exceeded" : null,
           },
           {
             label: "Budget Used",
             value: `${summary.budget_used_pct.toFixed(1)}%`,
-            sub: "progress",
             valueClass: "text-stone-800",
+            sub: "progress",
           },
         ].map((card) => (
           <div key={card.label} className="bg-white rounded-xl border border-stone-200 p-5">
@@ -170,19 +172,21 @@ export default function CostsPage() {
             <p className={cn("text-xl font-bold leading-tight", card.valueClass)}>
               {card.value}
             </p>
-            {card.sub === "progress" && (
+            {card.sub === "progress" ? (
               <div className="w-full bg-stone-100 rounded-full h-1.5 mt-2.5">
                 <div
                   className={cn("h-1.5 rounded-full transition-all duration-500", budgetColor)}
                   style={{ width: `${budgetUsedWidth}%` }}
                 />
               </div>
-            )}
+            ) : card.sub ? (
+              <p className="text-xs text-red-500 mt-1">{card.sub}</p>
+            ) : null}
           </div>
         ))}
       </div>
 
-      {/* AI Prediction widget */}
+      {/* AI Cost Forecast widget */}
       {prediction && (
         <div
           className={cn(
@@ -192,30 +196,44 @@ export default function CostsPage() {
               : "bg-green-50 border-green-200"
           )}
         >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
+          <div className="flex items-start justify-between gap-6 flex-wrap">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
               {prediction.overrun_risk ? (
                 <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
               ) : (
                 <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
               )}
               <div>
-                <h3 className={cn("font-semibold", prediction.overrun_risk ? "text-red-800" : "text-green-800")}>
-                  {prediction.overrun_risk ? "Budget Overrun Risk Detected" : "Project on Budget"}
-                </h3>
-                <p className={cn("text-sm mt-1", prediction.overrun_risk ? "text-red-600" : "text-green-600")}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className={cn("font-bold text-sm", prediction.overrun_risk ? "text-red-800" : "text-green-800")}>
+                    {prediction.overrun_risk ? "Budget Overrun Risk Detected" : "Project on Budget"}
+                  </h3>
+                  {lowConfidence && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+                      Low confidence ({prediction.confidence_score}%)
+                    </span>
+                  )}
+                </div>
+                <p className={cn("text-sm mt-1 leading-relaxed", prediction.overrun_risk ? "text-red-600" : "text-green-600")}>
                   {prediction.notes}
                 </p>
+                {prediction.overrun_risk && overrunAmount > 0 && (
+                  <p className="text-sm font-semibold text-red-700 mt-1.5">
+                    Projected overrun: +{formatCompact(overrunAmount)} ({overrunPct.toFixed(1)}% over budget)
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-xs text-stone-400 mb-1">Predicted Final Cost</p>
-              <p className={cn("text-xl font-bold", prediction.overrun_risk ? "text-red-700" : "text-green-700")}>
-                {formatCurrency(prediction.predicted_final_cost)}
+              <p className={cn("text-2xl font-bold", prediction.overrun_risk ? "text-red-700" : "text-green-700")}>
+                {formatCompact(prediction.predicted_final_cost)}
               </p>
-              <p className="text-xs text-stone-400 mt-0.5">
-                Confidence: {prediction.confidence_score}% · {prediction.model_version}
-              </p>
+              {!lowConfidence && (
+                <p className="text-xs text-stone-400 mt-0.5">
+                  {prediction.confidence_score}% confidence · {prediction.model_version}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -233,7 +251,7 @@ export default function CostsPage() {
               <p className="text-sm text-stone-400 italic">No budget items defined.</p>
             ) : (
               (budgetItems ?? []).map((item) => {
-                const pct = summary.total_budget
+                const budgetPct = summary.total_budget
                   ? (item.estimated_amount / summary.total_budget) * 100
                   : 0;
                 return (
@@ -242,13 +260,13 @@ export default function CostsPage() {
                       <span className="font-medium text-stone-700">{item.category}</span>
                       <span className="text-stone-500">
                         {formatCurrency(item.estimated_amount)}
-                        <span className="text-stone-400 ml-1">({pct.toFixed(0)}%)</span>
+                        <span className="text-stone-400 ml-1">({budgetPct.toFixed(0)}%)</span>
                       </span>
                     </div>
                     <div className="w-full bg-stone-100 rounded-full h-2">
                       <div
                         className="bg-brand-400 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%` }}
+                        style={{ width: `${budgetPct}%` }}
                       />
                     </div>
                   </div>
@@ -258,7 +276,7 @@ export default function CostsPage() {
           </div>
         </div>
 
-        {/* Cost breakdown */}
+        {/* Actual Cost Breakdown */}
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">Actual Cost Breakdown</h2>
@@ -291,7 +309,7 @@ export default function CostsPage() {
               );
             })}
             <div className="pt-2 border-t border-stone-100 flex justify-between text-sm font-semibold text-stone-800">
-              <span>Total</span>
+              <span>Total to Date</span>
               <span>{formatCurrency(summary.actual_cost_to_date)}</span>
             </div>
           </div>
