@@ -29,7 +29,9 @@
     },
     "plugins": [
       "expo-router",
-      "expo-camera"
+      "expo-camera",
+      "expo-asset",
+      "expo-font"
     ],
     "scheme": "constructai",
     "experiments": {

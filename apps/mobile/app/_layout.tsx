@@ -1,3 +1,6 @@
+// ⚠️  Must be the very first import — patches missing Hermes globals
+import "@/polyfills";
+
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
