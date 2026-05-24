@@ -1,0 +1,286 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useActiveProject } from "@/hooks/useActiveProject";
+import { tasksApi, GanttTask } from "@/services/tasks";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { Badge } from "@/components/ui/Badge";
+
+const STATUS_COLORS: Record<string, string> = {
+  completed:   "bg-green-500",
+  in_progress: "bg-blue-500",
+  delayed:     "bg-red-500",
+  not_started: "bg-slate-300",
+};
+
+function daysBetween(a: string, b: string) {
+  return Math.round(
+    (new Date(b).getTime() - new Date(a).getTime()) / 86_400_000
+  );
+}
+
+export default function SchedulePage() {
+  const { projectId, project, isLoading: projLoading } = useActiveProject();
+
+  const { data: ganttData, isLoading } = useQuery({
+    queryKey: ["gantt", projectId],
+    queryFn: () => tasksApi.gantt(projectId!),
+    enabled: !!projectId,
+  });
+
+  if (projLoading || isLoading) return <LoadingSpinner message="Loading schedule…" />;
+
+  const tasks: GanttTask[] = ganttData?.tasks ?? [];
+
+  // Compute timeline bounds from project dates
+  const projectStart =
+    project?.planned_start_date ?? tasks.find((t) => t.planned_start_date)?.planned_start_date ?? "";
+  const projectEnd =
+    project?.planned_end_date ??
+    tasks.reduce<string>((max, t) => {
+      const d = t.planned_end_date ?? "";
+      return d > max ? d : max;
+    }, "");
+
+  const totalDays = projectStart && projectEnd ? daysBetween(projectStart, projectEnd) : 120;
+
+  // Build month labels for header
+  const months: { label: string; days: number }[] = [];
+  if (projectStart && totalDays > 0) {
+    let cur = new Date(projectStart);
+    const end = new Date(projectEnd);
+    while (cur < end) {
+      const monthStart = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      const monthEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+      const clampedEnd = monthEnd < end ? monthEnd : end;
+      const clampedStart = monthStart < new Date(projectStart) ? new Date(projectStart) : monthStart;
+      const days =
+        Math.round((clampedEnd.getTime() - clampedStart.getTime()) / 86_400_000) + 1;
+      months.push({
+        label: cur.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }),
+        days,
+      });
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  }
+
+  // Task progress bar bar computation
+  function barStyle(task: GanttTask) {
+    if (!task.planned_start_date || !task.planned_end_date || !projectStart) {
+      return { left: "0%", width: "0%" };
+    }
+    const offsetDays = daysBetween(projectStart, task.planned_start_date);
+    const durationDays = daysBetween(task.planned_start_date, task.planned_end_date);
+    const left = Math.max(0, (offsetDays / totalDays) * 100);
+    const width = Math.max(0.5, (durationDays / totalDays) * 100);
+    return {
+      left: `${left.toFixed(2)}%`,
+      width: `${Math.min(width, 100 - left).toFixed(2)}%`,
+    };
+  }
+
+  // Stats
+  const completed = tasks.filter((t) => t.status === "completed").length;
+  const delayed = tasks.filter((t) => t.status === "delayed").length;
+  const inProgress = tasks.filter((t) => t.status === "in_progress").length;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Schedule</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {tasks.length} tasks · {completed} completed · {delayed} delayed
+          </p>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          {[
+            { label: "Completed",   color: "bg-green-500" },
+            { label: "In Progress", color: "bg-blue-500" },
+            { label: "Delayed",     color: "bg-red-500" },
+            { label: "Not Started", color: "bg-slate-300" },
+          ].map((leg) => (
+            <span key={leg.label} className="flex items-center gap-1.5 text-slate-600">
+              <span className={`w-3 h-3 rounded-sm ${leg.color}`} />
+              {leg.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary chips */}
+      <div className="flex gap-3 flex-wrap">
+        <div className="px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-sm">
+          <span className="text-slate-500">Total tasks: </span>
+          <span className="font-semibold text-slate-800">{tasks.length}</span>
+        </div>
+        <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-200 text-sm">
+          <span className="text-green-600 font-semibold">{completed} completed</span>
+        </div>
+        {inProgress > 0 && (
+          <div className="px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 text-sm">
+            <span className="text-blue-600 font-semibold">{inProgress} in progress</span>
+          </div>
+        )}
+        {delayed > 0 && (
+          <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-200 text-sm">
+            <span className="text-red-600 font-semibold">{delayed} delayed</span>
+          </div>
+        )}
+      </div>
+
+      {/* Gantt Chart */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex">
+          {/* Left: task names */}
+          <div className="w-[260px] flex-shrink-0 border-r border-slate-200">
+            {/* Header */}
+            <div className="h-10 px-4 flex items-center border-b border-slate-200 bg-slate-50">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                Task
+              </span>
+            </div>
+            {tasks.map((task, i) => (
+              <div
+                key={task.id}
+                className={`h-11 px-4 flex items-center gap-2 border-b border-slate-100 ${
+                  i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                }`}
+              >
+                <span className="text-sm text-slate-700 truncate flex-1">
+                  {task.name}
+                </span>
+                <Badge label={task.status} variant={task.status} className="text-[10px]" />
+              </div>
+            ))}
+          </div>
+
+          {/* Right: scrollable timeline */}
+          <div className="flex-1 overflow-x-auto">
+            <div style={{ minWidth: "700px" }}>
+              {/* Month header */}
+              <div className="h-10 flex border-b border-slate-200 bg-slate-50">
+                {months.map((m, i) => (
+                  <div
+                    key={i}
+                    className="flex-shrink-0 px-2 flex items-center justify-center border-r border-slate-200 text-xs font-medium text-slate-500"
+                    style={{ width: `${(m.days / totalDays) * 100}%` }}
+                  >
+                    {m.label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Task rows */}
+              {tasks.map((task, i) => {
+                const style = barStyle(task);
+                const color = STATUS_COLORS[task.status] ?? "bg-slate-300";
+                return (
+                  <div
+                    key={task.id}
+                    className={`h-11 relative flex items-center border-b border-slate-100 ${
+                      i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                    }`}
+                  >
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {months.map((m, j) => (
+                        <div
+                          key={j}
+                          className="border-r border-slate-100 flex-shrink-0"
+                          style={{ width: `${(m.days / totalDays) * 100}%` }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Task bar */}
+                    <div
+                      className="absolute h-6 rounded flex items-center overflow-hidden"
+                      style={style}
+                      title={`${task.name} — ${task.planned_start_date} → ${task.planned_end_date}`}
+                    >
+                      {/* Background track */}
+                      <div className={`absolute inset-0 rounded ${color} opacity-25`} />
+                      {/* Progress fill */}
+                      <div
+                        className={`absolute left-0 top-0 bottom-0 rounded ${color}`}
+                        style={{ width: `${task.progress_percentage}%` }}
+                      />
+                      {/* Label */}
+                      <span className="relative px-2 text-[10px] font-medium text-white truncate whitespace-nowrap">
+                        {task.progress_percentage > 0
+                          ? `${task.progress_percentage}%`
+                          : ""}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Task list table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-200">
+          <h2 className="text-sm font-semibold text-slate-700">Task Details</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Task</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Priority</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Start</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">End</th>
+                <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((task) => (
+                <tr
+                  key={task.id}
+                  className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                >
+                  <td className="px-5 py-3">
+                    <span className="font-medium text-slate-800">{task.name}</span>
+                    {task.is_weather_sensitive && (
+                      <span className="ml-2 text-xs text-blue-500" title="Weather sensitive">🌧</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge label={task.status} variant={task.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge label={task.priority} variant={task.priority} />
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {task.planned_start_date ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {task.planned_end_date ?? "—"}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="w-20 bg-slate-100 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full ${STATUS_COLORS[task.status] ?? "bg-slate-300"}`}
+                          style={{ width: `${task.progress_percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-500 w-8 text-right">
+                        {task.progress_percentage}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
