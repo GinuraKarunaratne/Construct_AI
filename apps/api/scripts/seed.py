@@ -323,7 +323,7 @@ for atype, severity, title, message, etype, eid in alerts_data:
     ))
 
 db.commit()
-print("Seed data created successfully.")
+print("✓ Seed data created successfully.")
 print(f"  Login: pm@constructai.lk / demo1234")
 print(f"  Login: supervisor@constructai.lk / demo1234")
 print(f"  Login: finance@constructai.lk / demo1234")
