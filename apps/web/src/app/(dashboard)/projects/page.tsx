@@ -3,10 +3,11 @@
 import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi, ProjectCreate } from "@/services/projects";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Plus, MapPin, FolderOpen, AlertTriangle } from "lucide-react";
 
 export default function ProjectsPage() {
   const qc = useQueryClient();
@@ -59,180 +60,167 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Projects</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {projects?.length ?? 0} project{projects?.length !== 1 ? "s" : ""}{" "}
-            in your workspace
+          <h1 className="page-title">Projects</h1>
+          <p className="page-subtitle">
+            {projects?.length ?? 0} project{projects?.length !== 1 ? "s" : ""} in your workspace
           </p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+        <button onClick={() => { setErr(null); setOpen(true); }} className="btn-primary">
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
           New Project
         </button>
       </div>
 
       {/* Project cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {(projects ?? []).map((p) => {
-          const totalDays =
-            p.planned_start_date && p.planned_end_date
-              ? Math.round(
-                  (new Date(p.planned_end_date).getTime() -
-                    new Date(p.planned_start_date).getTime()) /
-                    86_400_000
-                )
-              : null;
+      {(projects ?? []).length === 0 ? (
+        <EmptyState
+          icon={<FolderOpen className="w-5 h-5" />}
+          title="No projects yet"
+          description='Click "New Project" to get started.'
+          action={
+            <button onClick={() => { setErr(null); setOpen(true); }} className="btn-primary">
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              New Project
+            </button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {(projects ?? []).map((p) => {
+            const totalDays =
+              p.planned_start_date && p.planned_end_date
+                ? Math.round(
+                    (new Date(p.planned_end_date).getTime() -
+                      new Date(p.planned_start_date).getTime()) /
+                      86_400_000
+                  )
+                : null;
 
-          return (
-            <div
-              key={p.id}
-              className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div>
-                  <h2 className="font-semibold text-slate-900">{p.name}</h2>
-                  {p.location_name && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      📍 {p.location_name}
+            return (
+              <div
+                key={p.id}
+                className="card hover:shadow-md transition-shadow duration-150"
+              >
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <h2 className="font-semibold text-stone-900">{p.name}</h2>
+                      {p.location_name && (
+                        <p className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
+                          <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={2} />
+                          {p.location_name}
+                        </p>
+                      )}
+                    </div>
+                    <Badge label={p.status} variant={p.status} />
+                  </div>
+
+                  {p.description && (
+                    <p className="text-sm text-stone-500 mb-3 leading-relaxed">
+                      {p.description}
                     </p>
                   )}
-                </div>
-                <Badge label={p.status} variant={p.status} />
-              </div>
 
-              {p.description && (
-                <p className="text-sm text-slate-600 mb-3">{p.description}</p>
-              )}
-
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-slate-400">Budget</p>
-                  <p className="font-medium text-slate-800">
-                    {formatCurrency(p.total_budget)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Start</p>
-                  <p className="font-medium text-slate-800">
-                    {p.planned_start_date
-                      ? formatDate(p.planned_start_date)
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Duration</p>
-                  <p className="font-medium text-slate-800">
-                    {totalDays != null ? `${totalDays} days` : "—"}
-                  </p>
+                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-stone-100 text-sm">
+                    <div>
+                      <p className="text-xs text-stone-400 mb-0.5">Budget</p>
+                      <p className="font-semibold text-stone-800">
+                        {formatCurrency(p.total_budget)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-stone-400 mb-0.5">Start</p>
+                      <p className="font-medium text-stone-700">
+                        {p.planned_start_date ? formatDate(p.planned_start_date) : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-stone-400 mb-0.5">Duration</p>
+                      <p className="font-medium text-stone-700">
+                        {totalDays != null ? `${totalDays} days` : "—"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {projects?.length === 0 && (
-        <div className="text-center py-20 text-slate-400">
-          <p className="text-lg font-medium">No projects yet</p>
-          <p className="text-sm mt-1">Click "New Project" to get started.</p>
+            );
+          })}
         </div>
       )}
 
       {/* Create modal */}
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Create New Project"
-      >
+      <Modal open={open} onClose={() => setOpen(false)} title="Create New Project">
         <form onSubmit={handleSubmit} className="space-y-4">
           {err && (
-            <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
               {err}
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Project Name *
-            </label>
+            <label className="form-label">Project Name *</label>
             <input
               required
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Two-Storey House Construction"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Location
-            </label>
+            <label className="form-label">Location</label>
             <input
               value={form.location_name}
               onChange={(e) =>
                 setForm((f) => ({ ...f, location_name: e.target.value }))
               }
               placeholder="e.g. Colombo 7, Sri Lanka"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Start Date
-              </label>
+              <label className="form-label">Start Date</label>
               <input
                 type="date"
                 value={form.planned_start_date}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, planned_start_date: e.target.value }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                End Date
-              </label>
+              <label className="form-label">End Date</label>
               <input
                 type="date"
                 value={form.planned_end_date}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, planned_end_date: e.target.value }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Total Budget (LKR) *
-            </label>
+            <label className="form-label">Total Budget (LKR) *</label>
             <input
               type="number"
               required
               min={0}
               value={form.total_budget || ""}
               onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  total_budget: Number(e.target.value),
-                }))
+                setForm((f) => ({ ...f, total_budget: Number(e.target.value) }))
               }
               placeholder="12000000"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Description
-            </label>
+            <label className="form-label">Description</label>
             <textarea
               rows={2}
               value={form.description}
@@ -240,21 +228,21 @@ export default function ProjectsPage() {
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
               placeholder="Brief project description…"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="form-input resize-none"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={create.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors flex items-center gap-2"
+              className="btn-primary"
             >
               {create.isPending && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

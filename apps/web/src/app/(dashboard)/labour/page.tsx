@@ -4,19 +4,21 @@ import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { labourApi, AttendanceManual } from "@/services/labour";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
+import { Plus, Check, X, AlertTriangle } from "lucide-react";
 
 const today = new Date().toISOString().slice(0, 10);
 
 export default function LabourPage() {
   const qc = useQueryClient();
   const { projectId, isLoading: projLoading } = useActiveProject();
+
   const [selectedDate, setSelectedDate] = useState(today);
   const [attModal, setAttModal] = useState(false);
-  const [attForm, setAttForm] = useState<AttendanceManual>({
+  const [attForm, setAttForm]   = useState<AttendanceManual>({
     worker_id: 0,
     attendance_date: today,
     status: "present",
@@ -64,21 +66,18 @@ export default function LabourPage() {
 
   if (projLoading || workersLoading) return <LoadingSpinner message="Loading labour data…" />;
 
-  // Build attendance map: worker_id -> attendance record
-  const attMap = new Map(
-    (attendance ?? []).map((a) => [a.worker_id, a])
-  );
-
+  const attMap = new Map((attendance ?? []).map((a) => [a.worker_id, a]));
   const presentCount = [...attMap.values()].filter(
     (a) => a.status === "present" || a.status === "half_day"
   ).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Labour</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="page-title">Labour</h1>
+          <p className="page-subtitle">
             {workers?.length ?? 0} workers registered
           </p>
         </div>
@@ -88,66 +87,72 @@ export default function LabourPage() {
             setAttErr(null);
             setAttModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          className="btn-primary"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
           Mark Attendance
         </button>
       </div>
 
       {/* Workers table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">Registered Workers</h2>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Registered Workers</h2>
+          <span className="text-xs text-stone-400">{workers?.length ?? 0} total</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Worker</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Code</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Skill</th>
-                <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Daily Rate</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Phone</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(workers ?? []).map((w) => (
-                <tr key={w.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
-                        {w.full_name.charAt(0)}
-                      </div>
-                      <span className="font-medium text-slate-800">{w.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{w.worker_code}</td>
-                  <td className="px-4 py-3">
-                    <Badge label={w.skill_type} variant="default" />
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-800">
-                    {formatCurrency(w.daily_rate)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{w.phone ?? "—"}</td>
+        {(workers ?? []).length === 0 ? (
+          <EmptyState title="No workers registered" description="Add workers to start tracking labour." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Worker</th>
+                  <th>Code</th>
+                  <th>Skill</th>
+                  <th className="th-right">Daily Rate</th>
+                  <th>Phone</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(workers ?? []).map((w) => (
+                  <tr key={w.id}>
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-xs font-bold text-brand-700 flex-shrink-0">
+                          {w.full_name.charAt(0)}
+                        </div>
+                        <span className="font-semibold text-stone-800">{w.full_name}</span>
+                      </div>
+                    </td>
+                    <td className="font-mono text-xs text-stone-500">{w.worker_code}</td>
+                    <td>
+                      <Badge label={w.skill_type} variant="default" />
+                    </td>
+                    <td className="td-right font-semibold text-stone-800 tabular-nums">
+                      {formatCurrency(w.daily_rate)}
+                    </td>
+                    <td className="text-stone-500">{w.phone ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Attendance section */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
+      <div className="card">
+        <div className="card-header">
           <div>
-            <h2 className="text-sm font-semibold text-slate-700">
-              Attendance — {selectedDate}
+            <h2 className="card-title">
+              Attendance
+              <span className="ml-2 font-normal text-stone-400 text-xs">
+                {selectedDate}
+              </span>
             </h2>
-            {attendance && (
-              <p className="text-xs text-slate-500 mt-0.5">
+            {!attLoading && (
+              <p className="text-xs text-stone-400 mt-0.5">
                 {presentCount} present / {workers?.length ?? 0} total
               </p>
             )}
@@ -156,64 +161,68 @@ export default function LabourPage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="form-input !w-auto text-xs"
           />
         </div>
 
         {attLoading ? (
           <div className="py-8 flex justify-center">
-            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Worker</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Skill</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Check In</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">OT Hours</th>
-                  <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Action</th>
+                <tr>
+                  <th>Worker</th>
+                  <th>Skill</th>
+                  <th>Status</th>
+                  <th>Check In</th>
+                  <th className="th-right">OT Hours</th>
+                  <th className="th-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {(workers ?? []).map((w) => {
                   const att = attMap.get(w.id);
                   return (
-                    <tr key={w.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-800">{w.full_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{w.skill_type}</td>
-                      <td className="px-4 py-3">
+                    <tr key={w.id}>
+                      <td className="font-semibold text-stone-800">{w.full_name}</td>
+                      <td className="text-stone-500 text-xs">{w.skill_type}</td>
+                      <td>
                         {att ? (
                           <Badge label={att.status} variant={att.status} />
                         ) : (
-                          <span className="text-slate-400 text-xs">Not marked</span>
+                          <span className="text-xs text-stone-400 italic">Not marked</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="text-stone-500 tabular-nums text-xs">
                         {att?.check_in_time?.slice(0, 5) ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-600">
+                      <td className="td-right text-stone-500 text-xs tabular-nums">
                         {att ? `${att.overtime_hours}h` : "—"}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="td-right">
                         {att ? (
-                          <span className="text-xs text-slate-400 italic">Recorded</span>
+                          <span className="text-xs text-stone-400 italic">Recorded</span>
                         ) : (
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={() => quickMark(w.id, "present")}
                               disabled={markAtt.isPending}
-                              className="px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded border border-green-200 transition-colors disabled:opacity-50"
+                              aria-label={`Mark ${w.full_name} present`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors disabled:opacity-50"
                             >
+                              <Check className="w-3 h-3" strokeWidth={2.5} />
                               Present
                             </button>
                             <button
                               onClick={() => quickMark(w.id, "absent")}
                               disabled={markAtt.isPending}
-                              className="px-2.5 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors disabled:opacity-50"
+                              aria-label={`Mark ${w.full_name} absent`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors disabled:opacity-50"
                             >
+                              <X className="w-3 h-3" strokeWidth={2.5} />
                               Absent
                             </button>
                           </div>
@@ -236,21 +245,20 @@ export default function LabourPage() {
       >
         <form onSubmit={handleAttSubmit} className="space-y-4">
           {attErr && (
-            <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
               {attErr}
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Worker *
-            </label>
+            <label className="form-label">Worker *</label>
             <select
               required
               value={attForm.worker_id || ""}
               onChange={(e) =>
                 setAttForm((f) => ({ ...f, worker_id: Number(e.target.value) }))
               }
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             >
               <option value="">Select worker…</option>
               {(workers ?? []).map((w) => (
@@ -262,9 +270,7 @@ export default function LabourPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Date *
-              </label>
+              <label className="form-label">Date *</label>
               <input
                 type="date"
                 required
@@ -272,13 +278,11 @@ export default function LabourPage() {
                 onChange={(e) =>
                   setAttForm((f) => ({ ...f, attendance_date: e.target.value }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Status *
-              </label>
+              <label className="form-label">Status *</label>
               <select
                 value={attForm.status}
                 onChange={(e) =>
@@ -287,7 +291,7 @@ export default function LabourPage() {
                     status: e.target.value as AttendanceManual["status"],
                   }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               >
                 <option value="present">Present</option>
                 <option value="absent">Absent</option>
@@ -297,9 +301,7 @@ export default function LabourPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Overtime Hours
-            </label>
+            <label className="form-label">Overtime Hours</label>
             <input
               type="number"
               min={0}
@@ -308,27 +310,25 @@ export default function LabourPage() {
               onChange={(e) =>
                 setAttForm((f) => ({
                   ...f,
-                  overtime_hours: e.target.value
-                    ? Number(e.target.value)
-                    : undefined,
+                  overtime_hours: e.target.value ? Number(e.target.value) : undefined,
                 }))
               }
               placeholder="0"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
             <button
               type="button"
               onClick={() => setAttModal(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={markAtt.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors flex items-center gap-2"
+              className="btn-primary"
             >
               {markAtt.isPending && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -4,7 +4,19 @@
 
 @layer base {
   :root {
-    --sidebar-width: 240px;
+    /* Sidebar */
+    --sidebar-w: 220px;
+    --sidebar-w-collapsed: 64px;
+
+    /* Design tokens */
+    --color-bg:       #fafaf9;   /* warm off-white (stone-50) */
+    --color-surface:  #ffffff;
+    --color-border:   #e7e5e4;   /* stone-200 */
+    --color-text-1:   #1c1917;   /* stone-900 */
+    --color-text-2:   #78716c;   /* stone-500 */
+    --color-text-3:   #a8a29e;   /* stone-400 */
+    --color-accent:   #ea580c;   /* orange-600 */
+    --color-accent-s: #fff7ed;   /* orange-50  */
   }
 
   * {
@@ -12,7 +24,108 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    background-color: var(--color-bg);
+    color: var(--color-text-1);
+    @apply antialiased text-[14px] leading-relaxed;
+  }
+
+  /* Global focus ring: orange instead of blue */
+  *:focus-visible {
+    outline: 2px solid #ea580c;
+    outline-offset: 2px;
+  }
+
+  /* Input / select / textarea: orange focus ring */
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @apply outline-none ring-2 ring-orange-400 ring-offset-0 border-orange-400;
+  }
+
+  /* Smooth scrollbar */
+  html {
+    scrollbar-color: #e7e5e4 transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@layer components {
+  /* ── Shared table style ─────────────────────────────────────────── */
+  .data-table {
+    @apply w-full text-sm;
+  }
+  .data-table thead tr {
+    @apply bg-stone-50 border-b border-stone-200;
+  }
+  .data-table thead th {
+    @apply text-left px-4 py-2.5 text-[11px] font-semibold text-stone-500 uppercase tracking-wider;
+  }
+  .data-table thead th.th-right {
+    @apply text-right;
+  }
+  .data-table tbody tr {
+    @apply border-b border-stone-100 transition-colors duration-100;
+  }
+  .data-table tbody tr:hover {
+    @apply bg-orange-50/40;
+  }
+  .data-table tbody tr:last-child {
+    @apply border-b-0;
+  }
+  .data-table td {
+    @apply px-4 py-3 text-stone-700;
+  }
+  .data-table td.td-right {
+    @apply text-right;
+  }
+
+  /* ── Card container ─────────────────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-xl border border-stone-200 overflow-hidden;
+  }
+  .card-header {
+    @apply flex items-center justify-between px-5 py-3.5 border-b border-stone-100;
+  }
+  .card-title {
+    @apply text-sm font-semibold text-stone-700;
+  }
+
+  /* ── Primary button (orange) ────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Secondary button ───────────────────────────────────────────── */
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium rounded-lg border border-stone-200 transition-colors duration-150 disabled:opacity-50;
+  }
+
+  /* ── Ghost button ───────────────────────────────────────────────── */
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 text-sm font-medium rounded-lg transition-colors duration-150;
+  }
+
+  /* ── Form input ─────────────────────────────────────────────────── */
+  .form-input {
+    @apply w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-shadow;
+  }
+
+  /* ── Form label ─────────────────────────────────────────────────── */
+  .form-label {
+    @apply block text-sm font-medium text-stone-700 mb-1.5;
+  }
+
+  /* ── Page heading ───────────────────────────────────────────────── */
+  .page-title {
+    @apply text-xl font-bold text-stone-900 tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-sm text-stone-500 mt-0.5;
+  }
+
+  /* ── Section link ───────────────────────────────────────────────── */
+  .section-link {
+    @apply text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors;
   }
 }
 

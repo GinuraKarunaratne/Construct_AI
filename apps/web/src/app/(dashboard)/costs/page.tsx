@@ -4,9 +4,12 @@ import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { costsApi, ExpenseCreate } from "@/services/costs";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
+import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
+import { Plus, AlertTriangle, CheckCircle2, TrendingUp, BarChart3 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const EXPENSE_CATEGORIES = [
   "Equipment",
@@ -93,7 +96,7 @@ export default function CostsPage() {
       ? "bg-red-500"
       : summary.budget_used_pct >= 70
       ? "bg-amber-500"
-      : "bg-blue-500";
+      : "bg-brand-500";
 
   // Group expenses by category
   const expByCategory: Record<string, number> = {};
@@ -103,34 +106,30 @@ export default function CostsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Costs</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Budget tracking and cost prediction</p>
+          <h1 className="page-title">Costs</h1>
+          <p className="page-subtitle">Budget tracking and cost prediction</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => runPrediction.mutate()}
             disabled={runPrediction.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+            className="btn-secondary"
           >
             {runPrediction.isPending ? (
-              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
             ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
+              <BarChart3 className="w-4 h-4" strokeWidth={2} />
             )}
             Run Prediction
           </button>
           <button
             onClick={() => { setExpErr(null); setExpModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            className="btn-primary"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
             Add Expense
           </button>
         </div>
@@ -139,30 +138,44 @@ export default function CostsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Budget", value: summary.total_budget, color: "text-slate-800" },
-          { label: "Actual Cost to Date", value: summary.actual_cost_to_date, color: "text-blue-700" },
-          { label: "Remaining Budget", value: summary.remaining_budget, color: summary.remaining_budget < 0 ? "text-red-600" : "text-green-700" },
-          { label: "Budget Used", value: null, pct: summary.budget_used_pct, color: "text-slate-800" },
+          {
+            label: "Total Budget",
+            value: formatCurrency(summary.total_budget),
+            sub: null,
+            valueClass: "text-stone-800",
+          },
+          {
+            label: "Actual Cost to Date",
+            value: formatCurrency(summary.actual_cost_to_date),
+            sub: null,
+            valueClass: "text-brand-700",
+          },
+          {
+            label: "Remaining Budget",
+            value: formatCurrency(summary.remaining_budget),
+            sub: null,
+            valueClass: summary.remaining_budget < 0 ? "text-red-600" : "text-green-700",
+          },
+          {
+            label: "Budget Used",
+            value: `${summary.budget_used_pct.toFixed(1)}%`,
+            sub: "progress",
+            valueClass: "text-stone-800",
+          },
         ].map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-slate-200 p-5">
-            <p className="text-xs text-slate-400 uppercase font-semibold mb-1">
+          <div key={card.label} className="bg-white rounded-xl border border-stone-200 p-5">
+            <p className="text-[11px] text-stone-400 uppercase font-semibold tracking-wide mb-1.5">
               {card.label}
             </p>
-            {card.value != null ? (
-              <p className={`text-xl font-bold ${card.color}`}>
-                {formatCurrency(card.value)}
-              </p>
-            ) : (
-              <div>
-                <p className={`text-xl font-bold ${card.color}`}>
-                  {card.pct?.toFixed(1)}%
-                </p>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-                  <div
-                    className={`${budgetColor} h-1.5 rounded-full`}
-                    style={{ width: `${budgetUsedWidth}%` }}
-                  />
-                </div>
+            <p className={cn("text-xl font-bold leading-tight", card.valueClass)}>
+              {card.value}
+            </p>
+            {card.sub === "progress" && (
+              <div className="w-full bg-stone-100 rounded-full h-1.5 mt-2.5">
+                <div
+                  className={cn("h-1.5 rounded-full transition-all duration-500", budgetColor)}
+                  style={{ width: `${budgetUsedWidth}%` }}
+                />
               </div>
             )}
           </div>
@@ -172,29 +185,35 @@ export default function CostsPage() {
       {/* AI Prediction widget */}
       {prediction && (
         <div
-          className={`rounded-xl border p-5 ${
+          className={cn(
+            "rounded-xl border p-5",
             prediction.overrun_risk
               ? "bg-red-50 border-red-200"
               : "bg-green-50 border-green-200"
-          }`}
+          )}
         >
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className={`font-semibold ${prediction.overrun_risk ? "text-red-800" : "text-green-800"}`}>
-                {prediction.overrun_risk
-                  ? "⚠ Budget Overrun Risk Detected"
-                  : "✓ Project on Budget"}
-              </h3>
-              <p className={`text-sm mt-1 ${prediction.overrun_risk ? "text-red-600" : "text-green-600"}`}>
-                {prediction.notes}
-              </p>
+            <div className="flex items-start gap-3">
+              {prediction.overrun_risk ? (
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              ) : (
+                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              )}
+              <div>
+                <h3 className={cn("font-semibold", prediction.overrun_risk ? "text-red-800" : "text-green-800")}>
+                  {prediction.overrun_risk ? "Budget Overrun Risk Detected" : "Project on Budget"}
+                </h3>
+                <p className={cn("text-sm mt-1", prediction.overrun_risk ? "text-red-600" : "text-green-600")}>
+                  {prediction.notes}
+                </p>
+              </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-xs text-slate-500 mb-1">Predicted Final Cost</p>
-              <p className={`text-xl font-bold ${prediction.overrun_risk ? "text-red-700" : "text-green-700"}`}>
+              <p className="text-xs text-stone-400 mb-1">Predicted Final Cost</p>
+              <p className={cn("text-xl font-bold", prediction.overrun_risk ? "text-red-700" : "text-green-700")}>
                 {formatCurrency(prediction.predicted_final_cost)}
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-stone-400 mt-0.5">
                 Confidence: {prediction.confidence_score}% · {prediction.model_version}
               </p>
             </div>
@@ -205,46 +224,50 @@ export default function CostsPage() {
       {/* Budget items vs actual */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Budget Allocation */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">
-            Budget Allocation
-          </h2>
-          <div className="space-y-3">
-            {(budgetItems ?? []).map((item) => {
-              const pct = summary.total_budget
-                ? (item.estimated_amount / summary.total_budget) * 100
-                : 0;
-              return (
-                <div key={item.id}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium text-slate-700">{item.category}</span>
-                    <span className="text-slate-500">
-                      {formatCurrency(item.estimated_amount)}
-                      <span className="text-slate-400 ml-1">({pct.toFixed(0)}%)</span>
-                    </span>
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Budget Allocation</h2>
+          </div>
+          <div className="p-5 space-y-3">
+            {(budgetItems ?? []).length === 0 ? (
+              <p className="text-sm text-stone-400 italic">No budget items defined.</p>
+            ) : (
+              (budgetItems ?? []).map((item) => {
+                const pct = summary.total_budget
+                  ? (item.estimated_amount / summary.total_budget) * 100
+                  : 0;
+                return (
+                  <div key={item.id}>
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="font-medium text-stone-700">{item.category}</span>
+                      <span className="text-stone-500">
+                        {formatCurrency(item.estimated_amount)}
+                        <span className="text-stone-400 ml-1">({pct.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-stone-100 rounded-full h-2">
+                      <div
+                        className="bg-brand-400 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div
-                      className="bg-blue-400 h-2 rounded-full"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Cost breakdown */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">
-            Actual Cost Breakdown
-          </h2>
-          <div className="space-y-4">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Actual Cost Breakdown</h2>
+          </div>
+          <div className="p-5 space-y-4">
             {[
-              { label: "Materials", value: summary.material_cost, color: "bg-blue-400" },
-              { label: "Labour",    value: summary.labour_cost,   color: "bg-purple-400" },
-              { label: "Other",     value: summary.other_cost,    color: "bg-orange-400" },
+              { label: "Materials", value: summary.material_cost, color: "bg-brand-500" },
+              { label: "Labour",    value: summary.labour_cost,   color: "bg-violet-400" },
+              { label: "Other",     value: summary.other_cost,    color: "bg-stone-300"  },
             ].map((row) => {
               const pct = summary.actual_cost_to_date
                 ? (row.value / summary.actual_cost_to_date) * 100
@@ -252,22 +275,22 @@ export default function CostsPage() {
               return (
                 <div key={row.label}>
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="font-medium text-slate-700">{row.label}</span>
-                    <span className="text-slate-500">
+                    <span className="font-medium text-stone-700">{row.label}</span>
+                    <span className="text-stone-500">
                       {formatCurrency(row.value)}{" "}
-                      <span className="text-slate-400">({pct.toFixed(0)}%)</span>
+                      <span className="text-stone-400">({pct.toFixed(0)}%)</span>
                     </span>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-3">
+                  <div className="w-full bg-stone-100 rounded-full h-3">
                     <div
-                      className={`${row.color} h-3 rounded-full`}
+                      className={cn("h-3 rounded-full transition-all duration-500", row.color)}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
               );
             })}
-            <div className="pt-2 border-t border-slate-100 flex justify-between text-sm font-semibold text-slate-800">
+            <div className="pt-2 border-t border-stone-100 flex justify-between text-sm font-semibold text-stone-800">
               <span>Total</span>
               <span>{formatCurrency(summary.actual_cost_to_date)}</span>
             </div>
@@ -276,35 +299,37 @@ export default function CostsPage() {
       </div>
 
       {/* Expenses Table */}
-      {expenses && expenses.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Expenses</h2>
-            <span className="text-xs text-slate-400">
-              {expenses.length} records
-            </span>
-          </div>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Expenses</h2>
+          <span className="text-xs text-stone-400">{expenses?.length ?? 0} records</span>
+        </div>
+        {(expenses ?? []).length === 0 ? (
+          <EmptyState
+            icon={<TrendingUp className="w-5 h-5" />}
+            title="No expenses recorded"
+            description="Add an expense to start tracking costs."
+          />
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Category</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Description</th>
-                  <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Amount</th>
+                <tr>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th className="th-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((exp) => (
-                  <tr key={exp.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-5 py-3 text-slate-600">{exp.expense_date}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-                        {exp.category}
-                      </span>
+                {(expenses ?? []).map((exp) => (
+                  <tr key={exp.id}>
+                    <td className="text-stone-500 tabular-nums">{exp.expense_date}</td>
+                    <td>
+                      <Badge label={exp.category} variant="default" />
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{exp.description ?? "—"}</td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-800">
+                    <td className="text-stone-700">{exp.description ?? "—"}</td>
+                    <td className="td-right font-semibold text-stone-800 tabular-nums">
                       {formatCurrency(exp.amount)}
                     </td>
                   </tr>
@@ -312,54 +337,47 @@ export default function CostsPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Add Expense Modal */}
       <Modal open={expModal} onClose={() => setExpModal(false)} title="Add Expense">
         <form onSubmit={handleExpSubmit} className="space-y-4">
           {expErr && (
-            <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
               {expErr}
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Category *
-            </label>
+            <label className="form-label">Category *</label>
             <select
               required
               value={expForm.category}
               onChange={(e) =>
                 setExpForm((f) => ({ ...f, category: e.target.value }))
               }
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             >
               {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Description
-            </label>
+            <label className="form-label">Description</label>
             <input
               value={expForm.description ?? ""}
               onChange={(e) =>
                 setExpForm((f) => ({ ...f, description: e.target.value }))
               }
               placeholder="e.g. Concrete mixer rental"
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Amount (LKR) *
-              </label>
+              <label className="form-label">Amount (LKR) *</label>
               <input
                 type="number"
                 required
@@ -370,13 +388,11 @@ export default function CostsPage() {
                   setExpForm((f) => ({ ...f, amount: Number(e.target.value) }))
                 }
                 placeholder="50000"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Date *
-              </label>
+              <label className="form-label">Date *</label>
               <input
                 type="date"
                 required
@@ -384,22 +400,22 @@ export default function CostsPage() {
                 onChange={(e) =>
                   setExpForm((f) => ({ ...f, expense_date: e.target.value }))
                 }
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
             <button
               type="button"
               onClick={() => setExpModal(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={addExpense.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors flex items-center gap-2"
+              className="btn-primary"
             >
               {addExpense.isPending && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -8,17 +8,43 @@ import { costsApi } from "@/services/costs";
 import { StatCard } from "@/components/ui/StatCard";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { formatCurrency } from "@/lib/utils";
+import {
+  Wallet,
+  TrendingUp,
+  CalendarClock,
+  Bell,
+  HardHat,
+  PackageX,
+  X,
+  AlertTriangle,
+  Info,
+  CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
-const SEVERITY_STYLES = {
-  critical: "bg-red-50 border-red-200 text-red-800",
-  warning:  "bg-amber-50 border-amber-200 text-amber-800",
-  info:     "bg-blue-50 border-blue-200 text-blue-700",
-};
-const SEVERITY_DOT = {
-  critical: "bg-red-500",
-  warning:  "bg-amber-400",
-  info:     "bg-blue-500",
+const SEVERITY_CONFIG = {
+  critical: {
+    bar:  "bg-red-500",
+    card: "bg-red-50 border-red-200 text-red-900",
+    icon: AlertTriangle,
+    dot:  "bg-red-500",
+    iconColor: "text-red-500",
+  },
+  warning: {
+    bar:  "bg-amber-500",
+    card: "bg-amber-50 border-amber-200 text-amber-900",
+    icon: AlertTriangle,
+    dot:  "bg-amber-500",
+    iconColor: "text-amber-500",
+  },
+  info: {
+    bar:  "bg-sky-500",
+    card: "bg-sky-50 border-sky-200 text-sky-900",
+    icon: Info,
+    dot:  "bg-sky-500",
+    iconColor: "text-sky-500",
+  },
 };
 
 export default function DashboardPage() {
@@ -77,127 +103,136 @@ export default function DashboardPage() {
       label: "Total Budget",
       value: formatCurrency(dash.total_budget),
       sub: p.name,
-      icon: "budget",
-      color: "blue" as const,
+      tone: "orange" as const,
+      Icon: Wallet,
     },
     {
       label: "Actual Cost to Date",
       value: formatCurrency(dash.actual_cost_to_date),
       sub: `${dash.budget_used_pct.toFixed(1)}% of budget used`,
-      icon: "cost",
-      color: dash.budget_used_pct > 80 ? ("red" as const) : ("green" as const),
+      tone: dash.budget_used_pct > 80 ? ("red" as const) : ("green" as const),
+      Icon: TrendingUp,
     },
     {
       label: "Schedule Progress",
       value: `${dash.progress_pct.toFixed(0)}%`,
       sub: `Day ${Math.min(daysPassed, totalDays)} of ${totalDays}`,
-      icon: "schedule",
-      color: "purple" as const,
+      tone: "violet" as const,
+      Icon: CalendarClock,
     },
     {
       label: "Open Alerts",
       value: String(dash.open_alerts),
       sub: `${alerts?.filter((a) => a.severity === "critical").length ?? 0} critical`,
-      icon: "alert",
-      color: dash.open_alerts > 0 ? ("red" as const) : ("green" as const),
+      tone: dash.open_alerts > 0 ? ("red" as const) : ("green" as const),
+      Icon: Bell,
     },
     {
       label: "Today's Attendance",
       value: `${dash.today_attendance} / ${dash.workers_count}`,
       sub: `${dash.workers_count - dash.today_attendance} absent today`,
-      icon: "labour",
-      color: "indigo" as const,
+      tone: "sky" as const,
+      Icon: HardHat,
     },
     {
       label: "Low Stock Materials",
       value: String(dash.low_stock_count),
       sub: dash.low_stock_count > 0 ? "Reorder required" : "Stock OK",
-      icon: "material",
-      color: dash.low_stock_count > 0 ? ("amber" as const) : ("green" as const),
+      tone: dash.low_stock_count > 0 ? ("amber" as const) : ("green" as const),
+      Icon: PackageX,
     },
   ];
 
-  const unreadAlerts = (alerts ?? []).filter((a) => !a.is_read).slice(0, 5);
+  const unreadAlerts = (alerts ?? []).filter((a) => !a.is_read).slice(0, 4);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Project Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {p.location_name ?? p.name}
-          </p>
+          <h1 className="page-title">Project Dashboard</h1>
+          <p className="page-subtitle">{p.location_name ?? p.name}</p>
         </div>
-        <Link
-          href="/alerts"
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-        >
+        <Link href="/alerts" className="section-link mt-1 whitespace-nowrap">
           View all alerts →
         </Link>
       </div>
 
-      {/* Unread alerts */}
+      {/* Active alerts */}
       {unreadAlerts.length > 0 && (
         <div className="space-y-2">
-          {unreadAlerts.map((a) => (
-            <div
-              key={a.id}
-              className={`flex items-start gap-3 px-4 py-3 rounded-lg border text-sm ${
-                SEVERITY_STYLES[a.severity] ?? SEVERITY_STYLES.info
-              }`}
-            >
-              <span
-                className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                  SEVERITY_DOT[a.severity] ?? SEVERITY_DOT.info
-                }`}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold">{a.title}</p>
-                <p className="opacity-80 mt-0.5">{a.message}</p>
-              </div>
-              <button
-                onClick={() => markRead.mutate(a.id)}
-                className="text-xs opacity-60 hover:opacity-100 flex-shrink-0"
+          {unreadAlerts.map((a) => {
+            const cfg = SEVERITY_CONFIG[a.severity] ?? SEVERITY_CONFIG.info;
+            const AlertIcon = cfg.icon;
+            return (
+              <div
+                key={a.id}
+                className={cn(
+                  "flex items-start gap-3 px-4 py-3 rounded-xl border text-sm",
+                  cfg.card
+                )}
               >
-                Dismiss
-              </button>
-            </div>
-          ))}
+                <AlertIcon
+                  className={cn("w-4 h-4 flex-shrink-0 mt-0.5", cfg.iconColor)}
+                  strokeWidth={2}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">{a.title}</p>
+                  <p className="opacity-80 text-xs mt-0.5 leading-relaxed">
+                    {a.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => markRead.mutate(a.id)}
+                  aria-label="Dismiss alert"
+                  className="flex-shrink-0 p-1 rounded-md opacity-50 hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* KPI cards */}
+      {/* KPI grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
 
-      {/* Tasks + Cost breakdown */}
+      {/* Task + Cost panels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Task Progress */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-700">
-              Task Progress
-            </h2>
-            <Link
-              href="/schedule"
-              className="text-xs text-blue-600 hover:text-blue-800"
-            >
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Task Progress</h2>
+            <Link href="/schedule" className="section-link">
               View Gantt →
             </Link>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Completed</span>
-              <span className="font-medium text-green-600">
-                {dash.completed_tasks} / {dash.task_count}
-              </span>
+          <div className="p-5 space-y-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-2xl font-bold text-stone-900 leading-none">
+                  {dash.completed_tasks}
+                  <span className="text-base font-normal text-stone-400 ml-1">
+                    / {dash.task_count}
+                  </span>
+                </p>
+                <p className="text-xs text-stone-400 mt-1">tasks completed</p>
+              </div>
+              <p className="text-sm font-semibold text-stone-700">
+                {dash.task_count
+                  ? ((dash.completed_tasks / dash.task_count) * 100).toFixed(0)
+                  : 0}
+                %
+              </p>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2">
+            <div className="w-full bg-stone-100 rounded-full h-2">
               <div
-                className="bg-green-500 h-2 rounded-full"
+                className="bg-green-500 h-2 rounded-full transition-all duration-500"
                 style={{
                   width: `${
                     dash.task_count
@@ -207,14 +242,17 @@ export default function DashboardPage() {
                 }}
               />
             </div>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+            <div className="flex items-center gap-5 text-xs text-stone-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />
                 {dash.delayed_tasks} delayed
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
-                {dash.task_count - dash.completed_tasks - dash.delayed_tasks}{" "}
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm bg-stone-300 inline-block" />
+                {Math.max(
+                  0,
+                  dash.task_count - dash.completed_tasks - dash.delayed_tasks
+                )}{" "}
                 pending
               </span>
             </div>
@@ -222,32 +260,29 @@ export default function DashboardPage() {
         </div>
 
         {/* Cost Breakdown */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-700">
-              Cost Breakdown
-            </h2>
-            <Link
-              href="/costs"
-              className="text-xs text-blue-600 hover:text-blue-800"
-            >
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Cost Breakdown</h2>
+            <Link href="/costs" className="section-link">
               Full report →
             </Link>
           </div>
-          <div className="space-y-2.5">
+          <div className="p-5 space-y-3">
             {[
-              { label: "Materials", value: dash.material_cost, color: "bg-blue-400" },
-              { label: "Labour",    value: dash.labour_cost,   color: "bg-purple-400" },
-              { label: "Other",     value: dash.other_cost,    color: "bg-orange-400" },
+              { label: "Materials", value: dash.material_cost, color: "bg-brand-500" },
+              { label: "Labour",    value: dash.labour_cost,   color: "bg-violet-400" },
+              { label: "Other",     value: dash.other_cost,    color: "bg-stone-300"  },
             ].map((row) => (
               <div key={row.label}>
-                <div className="flex justify-between text-xs text-slate-600 mb-1">
+                <div className="flex justify-between text-xs text-stone-600 mb-1.5">
                   <span>{row.label}</span>
-                  <span className="font-medium">{formatCurrency(row.value)}</span>
+                  <span className="font-semibold text-stone-800">
+                    {formatCurrency(row.value)}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5">
+                <div className="w-full bg-stone-100 rounded-full h-1.5">
                   <div
-                    className={`${row.color} h-1.5 rounded-full`}
+                    className={cn("h-1.5 rounded-full transition-all duration-500", row.color)}
                     style={{
                       width: `${
                         dash.actual_cost_to_date
@@ -262,24 +297,31 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+
+            {/* Prediction banner */}
+            {pred && (
+              <div
+                className={cn(
+                  "flex items-center gap-2.5 mt-2 px-3.5 py-2.5 rounded-lg text-xs font-medium",
+                  pred.overrun_risk
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-green-50 text-green-700 border border-green-200"
+                )}
+              >
+                {pred.overrun_risk ? (
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} />
+                )}
+                <span>
+                  {pred.overrun_risk ? "Budget overrun risk" : "On budget"} — Predicted:{" "}
+                  <span className="font-bold">
+                    {formatCurrency(pred.predicted_final_cost)}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
-          {pred && (
-            <div
-              className={`mt-4 px-3 py-2 rounded-lg text-xs ${
-                pred.overrun_risk
-                  ? "bg-red-50 text-red-700"
-                  : "bg-green-50 text-green-700"
-              }`}
-            >
-              <span className="font-medium">
-                {pred.overrun_risk ? "⚠ Budget overrun risk" : "✓ On budget"}
-              </span>
-              {" — "}Predicted final:{" "}
-              <span className="font-semibold">
-                {formatCurrency(pred.predicted_final_cost)}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>

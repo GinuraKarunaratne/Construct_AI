@@ -1,30 +1,50 @@
-import { clsx } from "clsx";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
-type Color = "blue" | "green" | "purple" | "red" | "indigo" | "amber";
+type Tone = "orange" | "green" | "red" | "amber" | "violet" | "sky" | "neutral";
 
 interface StatCardProps {
   label: string;
   value: string;
   sub?: string;
-  color?: Color;
-  icon?: string; // accepted but not rendered (icon-free design)
+  tone?: Tone;
+  icon?: string;     // legacy — accepted but not used
+  color?: string;    // legacy — accepted but not used
+  Icon?: LucideIcon;
+  trend?: "up" | "down" | "flat";
 }
 
-const COLOR_MAP: Record<Color, string> = {
-  blue:   "bg-blue-50 text-blue-700",
-  green:  "bg-emerald-50 text-emerald-700",
-  purple: "bg-purple-50 text-purple-700",
-  red:    "bg-red-50 text-red-700",
-  indigo: "bg-indigo-50 text-indigo-700",
-  amber:  "bg-amber-50 text-amber-700",
+const TONE_MAP: Record<Tone, { icon: string; value: string; bg: string }> = {
+  orange:  { icon: "text-brand-600", value: "text-brand-600", bg: "bg-brand-50"  },
+  green:   { icon: "text-green-600", value: "text-green-700", bg: "bg-green-50"  },
+  red:     { icon: "text-red-500",   value: "text-red-700",   bg: "bg-red-50"    },
+  amber:   { icon: "text-amber-600", value: "text-amber-700", bg: "bg-amber-50"  },
+  violet:  { icon: "text-violet-600",value: "text-violet-700",bg: "bg-violet-50" },
+  sky:     { icon: "text-sky-600",   value: "text-sky-700",   bg: "bg-sky-50"    },
+  neutral: { icon: "text-stone-400", value: "text-stone-700", bg: "bg-stone-100" },
 };
 
-export function StatCard({ label, value, sub, color = "blue" }: StatCardProps) {
+export function StatCard({ label, value, sub, tone = "neutral", Icon }: StatCardProps) {
+  const t = TONE_MAP[tone];
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-sm transition-shadow">
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
-      <p className={clsx("text-2xl font-bold mt-1.5", COLOR_MAP[color])}>{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+    <div className="bg-white rounded-xl border border-stone-200 p-5 hover:shadow-sm transition-shadow duration-150">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider leading-tight">
+          {label}
+        </p>
+        {Icon && (
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", t.bg)}>
+            <Icon className={cn("w-4 h-4", t.icon)} strokeWidth={2} />
+          </div>
+        )}
+      </div>
+      <p className={cn("text-2xl font-bold mt-2.5 leading-none tracking-tight", t.value)}>
+        {value}
+      </p>
+      {sub && (
+        <p className="text-xs text-stone-400 mt-1.5 leading-snug">{sub}</p>
+      )}
     </div>
   );
 }

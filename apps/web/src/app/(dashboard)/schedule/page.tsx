@@ -3,15 +3,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { tasksApi, GanttTask } from "@/services/tasks";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
+import { CalendarDays, CloudRain } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   completed:   "bg-green-500",
-  in_progress: "bg-blue-500",
+  in_progress: "bg-brand-500",
   delayed:     "bg-red-500",
-  not_started: "bg-slate-300",
+  not_started: "bg-stone-300",
 };
+
+const LEGEND = [
+  { label: "Completed",   color: "bg-green-500"  },
+  { label: "In Progress", color: "bg-brand-500"  },
+  { label: "Delayed",     color: "bg-red-500"    },
+  { label: "Not Started", color: "bg-stone-300"  },
+];
 
 function daysBetween(a: string, b: string) {
   return Math.round(
@@ -64,7 +73,7 @@ export default function SchedulePage() {
     }
   }
 
-  // Task progress bar bar computation
+  // Task bar position computation
   function barStyle(task: GanttTask) {
     if (!task.planned_start_date || !task.planned_end_date || !projectStart) {
       return { left: "0%", width: "0%" };
@@ -80,28 +89,25 @@ export default function SchedulePage() {
   }
 
   // Stats
-  const completed = tasks.filter((t) => t.status === "completed").length;
-  const delayed = tasks.filter((t) => t.status === "delayed").length;
+  const completed  = tasks.filter((t) => t.status === "completed").length;
+  const delayed    = tasks.filter((t) => t.status === "delayed").length;
   const inProgress = tasks.filter((t) => t.status === "in_progress").length;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Schedule</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="page-title">Schedule</h1>
+          <p className="page-subtitle">
             {tasks.length} tasks · {completed} completed · {delayed} delayed
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          {[
-            { label: "Completed",   color: "bg-green-500" },
-            { label: "In Progress", color: "bg-blue-500" },
-            { label: "Delayed",     color: "bg-red-500" },
-            { label: "Not Started", color: "bg-slate-300" },
-          ].map((leg) => (
-            <span key={leg.label} className="flex items-center gap-1.5 text-slate-600">
-              <span className={`w-3 h-3 rounded-sm ${leg.color}`} />
+        {/* Legend */}
+        <div className="hidden sm:flex items-center gap-3 text-xs flex-wrap justify-end">
+          {LEGEND.map((leg) => (
+            <span key={leg.label} className="flex items-center gap-1.5 text-stone-500">
+              <span className={cn("w-3 h-3 rounded-sm flex-shrink-0", leg.color)} />
               {leg.label}
             </span>
           ))}
@@ -109,17 +115,17 @@ export default function SchedulePage() {
       </div>
 
       {/* Summary chips */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-sm">
-          <span className="text-slate-500">Total tasks: </span>
-          <span className="font-semibold text-slate-800">{tasks.length}</span>
+      <div className="flex gap-2 flex-wrap">
+        <div className="px-3 py-1.5 bg-white rounded-lg border border-stone-200 text-sm">
+          <span className="text-stone-500">Total: </span>
+          <span className="font-semibold text-stone-800">{tasks.length}</span>
         </div>
         <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-200 text-sm">
-          <span className="text-green-600 font-semibold">{completed} completed</span>
+          <span className="text-green-700 font-semibold">{completed} completed</span>
         </div>
         {inProgress > 0 && (
-          <div className="px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 text-sm">
-            <span className="text-blue-600 font-semibold">{inProgress} in progress</span>
+          <div className="px-3 py-1.5 bg-brand-50 rounded-lg border border-brand-200 text-sm">
+            <span className="text-brand-700 font-semibold">{inProgress} in progress</span>
           </div>
         )}
         {delayed > 0 && (
@@ -129,158 +135,166 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Gantt Chart */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex">
-          {/* Left: task names */}
-          <div className="w-[260px] flex-shrink-0 border-r border-slate-200">
-            {/* Header */}
-            <div className="h-10 px-4 flex items-center border-b border-slate-200 bg-slate-50">
-              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                Task
-              </span>
-            </div>
-            {tasks.map((task, i) => (
-              <div
-                key={task.id}
-                className={`h-11 px-4 flex items-center gap-2 border-b border-slate-100 ${
-                  i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                }`}
-              >
-                <span className="text-sm text-slate-700 truncate flex-1">
-                  {task.name}
-                </span>
-                <Badge label={task.status} variant={task.status} className="text-[10px]" />
-              </div>
-            ))}
-          </div>
-
-          {/* Right: scrollable timeline */}
-          <div className="flex-1 overflow-x-auto">
-            <div style={{ minWidth: "700px" }}>
-              {/* Month header */}
-              <div className="h-10 flex border-b border-slate-200 bg-slate-50">
-                {months.map((m, i) => (
+      {tasks.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDays className="w-5 h-5" />}
+          title="No tasks scheduled"
+          description="Tasks will appear here once added to the project."
+        />
+      ) : (
+        <>
+          {/* Gantt Chart */}
+          <div className="card overflow-hidden">
+            <div className="flex">
+              {/* Left: task names */}
+              <div className="w-[260px] flex-shrink-0 border-r border-stone-200">
+                <div className="h-10 px-4 flex items-center border-b border-stone-200 bg-stone-50">
+                  <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                    Task
+                  </span>
+                </div>
+                {tasks.map((task, i) => (
                   <div
-                    key={i}
-                    className="flex-shrink-0 px-2 flex items-center justify-center border-r border-slate-200 text-xs font-medium text-slate-500"
-                    style={{ width: `${(m.days / totalDays) * 100}%` }}
+                    key={task.id}
+                    className={cn(
+                      "h-11 px-4 flex items-center gap-2 border-b border-stone-100",
+                      i % 2 === 0 ? "bg-white" : "bg-stone-50/50"
+                    )}
                   >
-                    {m.label}
+                    <span className="text-sm text-stone-700 truncate flex-1">
+                      {task.name}
+                    </span>
+                    <Badge label={task.status} variant={task.status} className="text-[10px]" />
                   </div>
                 ))}
               </div>
 
-              {/* Task rows */}
-              {tasks.map((task, i) => {
-                const style = barStyle(task);
-                const color = STATUS_COLORS[task.status] ?? "bg-slate-300";
-                return (
-                  <div
-                    key={task.id}
-                    className={`h-11 relative flex items-center border-b border-slate-100 ${
-                      i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                    }`}
-                  >
-                    {/* Grid lines */}
-                    <div className="absolute inset-0 flex pointer-events-none">
-                      {months.map((m, j) => (
-                        <div
-                          key={j}
-                          className="border-r border-slate-100 flex-shrink-0"
-                          style={{ width: `${(m.days / totalDays) * 100}%` }}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Task bar */}
-                    <div
-                      className="absolute h-6 rounded flex items-center overflow-hidden"
-                      style={style}
-                      title={`${task.name} — ${task.planned_start_date} → ${task.planned_end_date}`}
-                    >
-                      {/* Background track */}
-                      <div className={`absolute inset-0 rounded ${color} opacity-25`} />
-                      {/* Progress fill */}
+              {/* Right: scrollable timeline */}
+              <div className="flex-1 overflow-x-auto">
+                <div style={{ minWidth: "700px" }}>
+                  {/* Month header */}
+                  <div className="h-10 flex border-b border-stone-200 bg-stone-50">
+                    {months.map((m, i) => (
                       <div
-                        className={`absolute left-0 top-0 bottom-0 rounded ${color}`}
-                        style={{ width: `${task.progress_percentage}%` }}
-                      />
-                      {/* Label */}
-                      <span className="relative px-2 text-[10px] font-medium text-white truncate whitespace-nowrap">
-                        {task.progress_percentage > 0
-                          ? `${task.progress_percentage}%`
-                          : ""}
-                      </span>
-                    </div>
+                        key={i}
+                        className="flex-shrink-0 px-2 flex items-center justify-center border-r border-stone-200 text-xs font-medium text-stone-500"
+                        style={{ width: `${(m.days / totalDays) * 100}%` }}
+                      >
+                        {m.label}
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+
+                  {/* Task rows */}
+                  {tasks.map((task, i) => {
+                    const style = barStyle(task);
+                    const color = STATUS_COLORS[task.status] ?? "bg-stone-300";
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "h-11 relative flex items-center border-b border-stone-100",
+                          i % 2 === 0 ? "bg-white" : "bg-stone-50/50"
+                        )}
+                      >
+                        {/* Grid lines */}
+                        <div className="absolute inset-0 flex pointer-events-none">
+                          {months.map((m, j) => (
+                            <div
+                              key={j}
+                              className="border-r border-stone-100 flex-shrink-0"
+                              style={{ width: `${(m.days / totalDays) * 100}%` }}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Task bar */}
+                        <div
+                          className="absolute h-6 rounded flex items-center overflow-hidden"
+                          style={style}
+                          title={`${task.name} — ${task.planned_start_date} → ${task.planned_end_date}`}
+                        >
+                          <div className={cn("absolute inset-0 rounded opacity-25", color)} />
+                          <div
+                            className={cn("absolute left-0 top-0 bottom-0 rounded", color)}
+                            style={{ width: `${task.progress_percentage}%` }}
+                          />
+                          <span className="relative px-2 text-[10px] font-medium text-white truncate whitespace-nowrap">
+                            {task.progress_percentage > 0 ? `${task.progress_percentage}%` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Task list table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">Task Details</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Task</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Priority</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Start</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">End</th>
-                <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <tr
-                  key={task.id}
-                  className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-5 py-3">
-                    <span className="font-medium text-slate-800">{task.name}</span>
-                    {task.is_weather_sensitive && (
-                      <span className="ml-2 text-xs text-blue-500" title="Weather sensitive">🌧</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge label={task.status} variant={task.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge label={task.priority} variant={task.priority} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {task.planned_start_date ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {task.planned_end_date ?? "—"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="w-20 bg-slate-100 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full ${STATUS_COLORS[task.status] ?? "bg-slate-300"}`}
-                          style={{ width: `${task.progress_percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-500 w-8 text-right">
-                        {task.progress_percentage}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          {/* Task list table */}
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title">Task Details</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th className="th-right">Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasks.map((task) => (
+                    <tr key={task.id}>
+                      <td>
+                        <span className="font-semibold text-stone-800">{task.name}</span>
+                        {task.is_weather_sensitive && (
+                          <span title="Weather sensitive">
+                            <CloudRain
+                              className="w-3.5 h-3.5 inline ml-2 text-sky-400"
+                              strokeWidth={1.75}
+                            />
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <Badge label={task.status} variant={task.status} />
+                      </td>
+                      <td>
+                        <Badge label={task.priority} variant={task.priority} />
+                      </td>
+                      <td className="text-stone-500 tabular-nums">
+                        {task.planned_start_date ?? "—"}
+                      </td>
+                      <td className="text-stone-500 tabular-nums">
+                        {task.planned_end_date ?? "—"}
+                      </td>
+                      <td className="td-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-20 bg-stone-100 rounded-full h-1.5">
+                            <div
+                              className={cn("h-1.5 rounded-full", STATUS_COLORS[task.status] ?? "bg-stone-300")}
+                              style={{ width: `${task.progress_percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-stone-500 w-8 text-right tabular-nums">
+                            {task.progress_percentage}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

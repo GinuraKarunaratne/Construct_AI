@@ -4,10 +4,11 @@ import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { labourApi } from "@/services/labour";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
+import { Plus, Banknote, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function PayrollPage() {
   const qc = useQueryClient();
@@ -70,103 +71,113 @@ export default function PayrollPage() {
 
   const workerMap = new Map((workers ?? []).map((w) => [w.id, w]));
 
-  // Compute totals for a run's lines if available
   const runTotal = detailRun?.lines
     ? detailRun.lines.reduce((sum, l) => sum + l.net_pay, 0)
     : null;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Payroll</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="page-title">Payroll</h1>
+          <p className="page-subtitle">
             {runs?.length ?? 0} payroll run{runs?.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
           onClick={() => { setGenErr(null); setGenModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          className="btn-primary"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
           Generate Payroll
         </button>
       </div>
 
       {/* Runs list */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-700">Payroll Runs</h2>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Payroll Runs</h2>
+          <span className="text-xs text-stone-400">{runs?.length ?? 0} total</span>
         </div>
         {(runs ?? []).length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-sm">
-            No payroll runs yet. Click "Generate Payroll" to start.
-          </div>
+          <EmptyState
+            icon={<Banknote className="w-5 h-5" />}
+            title="No payroll runs yet"
+            description='Click "Generate Payroll" to create your first run.'
+          />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Period</th>
-                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(runs ?? []).map((run) => (
-                <tr key={run.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-slate-800">
-                      {run.period_start} → {run.period_end}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Run #{run.id}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge label={run.status} variant={run.status} />
-                  </td>
-                  <td className="px-5 py-3 text-right flex justify-end gap-2">
-                    <button
-                      onClick={() => setDetailRunId(run.id)}
-                      className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded border border-blue-200 transition-colors"
-                    >
-                      View
-                    </button>
-                    {run.status === "draft" && (
-                      <button
-                        onClick={() => approve.mutate(run.id)}
-                        disabled={approve.isPending}
-                        className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded border border-green-600 transition-colors disabled:opacity-60"
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Status</th>
+                  <th className="th-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(runs ?? []).map((run) => (
+                  <tr key={run.id}>
+                    <td>
+                      <p className="font-semibold text-stone-800">
+                        {run.period_start} → {run.period_end}
+                      </p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        Run #{run.id}
+                      </p>
+                    </td>
+                    <td>
+                      <Badge label={run.status} variant={run.status} />
+                    </td>
+                    <td className="td-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setDetailRunId(run.id)}
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
+                        >
+                          View
+                        </button>
+                        {run.status === "draft" && (
+                          <button
+                            onClick={() => approve.mutate(run.id)}
+                            disabled={approve.isPending}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg border border-green-600 transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />
+                            Approve
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Payroll detail */}
       {detailRun && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div className="card">
+          <div className="card-header">
             <div>
-              <h2 className="text-sm font-semibold text-slate-700">
-                Payroll Detail — {detailRun.period_start} to {detailRun.period_end}
+              <h2 className="card-title">
+                Payroll Detail
+                <span className="ml-2 font-normal text-stone-400 text-xs">
+                  {detailRun.period_start} → {detailRun.period_end}
+                </span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Status: <Badge label={detailRun.status} variant={detailRun.status} />
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-stone-400">Status:</span>
+                <Badge label={detailRun.status} variant={detailRun.status} />
+              </div>
             </div>
             {runTotal != null && (
               <div className="text-right">
-                <p className="text-xs text-slate-400">Total Net Pay</p>
-                <p className="text-lg font-bold text-slate-800">
+                <p className="text-xs text-stone-400">Total Net Pay</p>
+                <p className="text-lg font-bold text-stone-900">
                   {formatCurrency(runTotal)}
                 </p>
               </div>
@@ -174,44 +185,58 @@ export default function PayrollPage() {
           </div>
           {detailRun.lines && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="data-table">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Worker</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Days</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">OT Hours</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Gross Pay</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Advances</th>
-                    <th className="text-right px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase">Net Pay</th>
+                  <tr>
+                    <th>Worker</th>
+                    <th className="th-right">Days</th>
+                    <th className="th-right">OT Hours</th>
+                    <th className="th-right">Gross Pay</th>
+                    <th className="th-right">Advances</th>
+                    <th className="th-right">Net Pay</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detailRun.lines.map((line) => {
                     const w = workerMap.get(line.worker_id);
                     return (
-                      <tr key={line.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="px-5 py-3">
-                          <p className="font-medium text-slate-800">{w?.full_name ?? `Worker #${line.worker_id}`}</p>
-                          <p className="text-xs text-slate-400">{w?.skill_type}</p>
+                      <tr key={line.id}>
+                        <td>
+                          <p className="font-semibold text-stone-800">
+                            {w?.full_name ?? `Worker #${line.worker_id}`}
+                          </p>
+                          <p className="text-xs text-stone-400">{w?.skill_type}</p>
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-700">{line.days_worked}</td>
-                        <td className="px-4 py-3 text-right text-slate-700">{line.overtime_hours}h</td>
-                        <td className="px-4 py-3 text-right text-slate-700">{formatCurrency(line.gross_pay)}</td>
-                        <td className="px-4 py-3 text-right text-amber-600">
-                          {line.advances > 0 ? `-${formatCurrency(line.advances)}` : "—"}
+                        <td className="td-right text-stone-700 tabular-nums">
+                          {line.days_worked}
                         </td>
-                        <td className="px-5 py-3 text-right font-semibold text-slate-900">
+                        <td className="td-right text-stone-700 tabular-nums">
+                          {line.overtime_hours}h
+                        </td>
+                        <td className="td-right text-stone-700 tabular-nums">
+                          {formatCurrency(line.gross_pay)}
+                        </td>
+                        <td className="td-right tabular-nums">
+                          {line.advances > 0 ? (
+                            <span className="text-amber-600 font-medium">
+                              -{formatCurrency(line.advances)}
+                            </span>
+                          ) : (
+                            <span className="text-stone-400">—</span>
+                          )}
+                        </td>
+                        <td className="td-right font-semibold text-stone-900 tabular-nums">
                           {formatCurrency(line.net_pay)}
                         </td>
                       </tr>
                     );
                   })}
                   {/* Total row */}
-                  <tr className="border-t-2 border-slate-200 bg-slate-50">
-                    <td className="px-5 py-3 font-semibold text-slate-700" colSpan={5}>
+                  <tr className="border-t-2 border-stone-200 bg-stone-50">
+                    <td className="px-5 py-3 font-semibold text-stone-700" colSpan={5}>
                       Total
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-slate-900">
+                    <td className="px-5 py-3 text-right font-bold text-stone-900 tabular-nums">
                       {formatCurrency(runTotal ?? 0)}
                     </td>
                   </tr>
@@ -223,59 +248,52 @@ export default function PayrollPage() {
       )}
 
       {/* Generate Modal */}
-      <Modal
-        open={genModal}
-        onClose={() => setGenModal(false)}
-        title="Generate Payroll"
-      >
+      <Modal open={genModal} onClose={() => setGenModal(false)} title="Generate Payroll">
         <form onSubmit={handleGenSubmit} className="space-y-4">
           {genErr && (
-            <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
               {genErr}
             </div>
           )}
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-stone-500 leading-relaxed">
             Payroll is calculated from actual attendance records for the selected
             period. Workers are paid based on days present plus overtime.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Period Start *
-              </label>
+              <label className="form-label">Period Start *</label>
               <input
                 type="date"
                 required
                 value={periodStart}
                 onChange={(e) => setPeriodStart(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Period End *
-              </label>
+              <label className="form-label">Period End *</label>
               <input
                 type="date"
                 required
                 value={periodEnd}
                 onChange={(e) => setPeriodEnd(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
             <button
               type="button"
               onClick={() => setGenModal(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={generate.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 rounded-lg transition-colors flex items-center gap-2"
+              className="btn-primary"
             >
               {generate.isPending && (
                 <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
