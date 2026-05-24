@@ -61,10 +61,10 @@ function NavItem({ href, label, Icon, active, collapsed, badge }: NavItemProps) 
         href={href}
         aria-label={label}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 overflow-hidden whitespace-nowrap",
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 overflow-hidden whitespace-nowrap",
           active
-            ? "bg-brand-600 text-white"
-            : "text-stone-400 hover:text-white hover:bg-stone-800/70"
+            ? "bg-brand-600 text-white shadow-sm shadow-brand-900/30"
+            : "text-stone-400 hover:text-stone-100 hover:bg-stone-800/60"
         )}
       >
         <Icon className="w-[18px] h-[18px] flex-shrink-0 shrink-0" strokeWidth={1.75} />

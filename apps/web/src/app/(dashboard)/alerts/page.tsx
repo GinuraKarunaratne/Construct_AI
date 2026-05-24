@@ -95,7 +95,7 @@ export default function AlertsPage() {
       {(criticalCount > 0 || warningCount > 0 || infoCount > 0) && (
         <div className="flex gap-3 flex-wrap">
           {criticalCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full">
               <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
               <span className="text-sm text-red-700 font-semibold">
                 {criticalCount} critical
@@ -103,7 +103,7 @@ export default function AlertsPage() {
             </div>
           )}
           {warningCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
               <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
               <span className="text-sm text-amber-700 font-semibold">
                 {warningCount} warning{warningCount !== 1 ? "s" : ""}
@@ -111,7 +111,7 @@ export default function AlertsPage() {
             </div>
           )}
           {infoCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-full">
               <span className="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
               <span className="text-sm text-sky-700 font-semibold">
                 {infoCount} info
@@ -138,9 +138,9 @@ export default function AlertsPage() {
               <div
                 key={alert.id}
                 className={cn(
-                  "flex items-start gap-4 p-4 rounded-xl border transition-opacity",
+                  "flex items-start gap-4 p-4 rounded-2xl border transition-opacity",
                   cfg.bg,
-                  alert.is_read ? "opacity-50" : ""
+                  alert.is_read ? "opacity-40" : ""
                 )}
               >
                 <AlertIcon

@@ -116,20 +116,20 @@ export default function SchedulePage() {
 
       {/* Summary chips */}
       <div className="flex gap-2 flex-wrap">
-        <div className="px-3 py-1.5 bg-white rounded-lg border border-stone-200 text-sm">
+        <div className="px-3 py-1.5 bg-white rounded-full border border-stone-200 text-sm">
           <span className="text-stone-500">Total: </span>
           <span className="font-semibold text-stone-800">{tasks.length}</span>
         </div>
-        <div className="px-3 py-1.5 bg-green-50 rounded-lg border border-green-200 text-sm">
+        <div className="px-3 py-1.5 bg-green-50 rounded-full border border-green-200 text-sm">
           <span className="text-green-700 font-semibold">{completed} completed</span>
         </div>
         {inProgress > 0 && (
-          <div className="px-3 py-1.5 bg-brand-50 rounded-lg border border-brand-200 text-sm">
+          <div className="px-3 py-1.5 bg-brand-50 rounded-full border border-brand-200 text-sm">
             <span className="text-brand-700 font-semibold">{inProgress} in progress</span>
           </div>
         )}
         {delayed > 0 && (
-          <div className="px-3 py-1.5 bg-red-50 rounded-lg border border-red-200 text-sm">
+          <div className="px-3 py-1.5 bg-red-50 rounded-full border border-red-200 text-sm">
             <span className="text-red-600 font-semibold">{delayed} delayed</span>
           </div>
         )}

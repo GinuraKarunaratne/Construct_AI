@@ -143,7 +143,7 @@ export default function SettingsPage() {
           )}
 
           {/* Demo notice */}
-          <div className="flex items-start gap-3 p-4 bg-stone-50 border border-stone-200 rounded-xl text-sm">
+          <div className="flex items-start gap-3 p-4 bg-stone-50 border border-stone-200 rounded-2xl text-sm">
             <Info className="w-4 h-4 text-stone-400 flex-shrink-0 mt-0.5" strokeWidth={2} />
             <div>
               <p className="font-semibold text-stone-700 mb-1">Demo Mode</p>

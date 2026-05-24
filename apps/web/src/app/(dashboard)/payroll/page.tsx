@@ -133,7 +133,7 @@ export default function PayrollPage() {
           ].map((chip) => (
             <div
               key={chip.label}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${chip.bg}`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-sm ${chip.bg}`}
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${chip.iconBg}`}>
                 <chip.icon className="w-4 h-4" strokeWidth={2} />

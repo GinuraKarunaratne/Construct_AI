@@ -8,7 +8,7 @@ import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Check, X, AlertTriangle } from "lucide-react";
+import { Plus, Check, X, AlertTriangle, Search } from "lucide-react";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -17,6 +17,7 @@ export default function LabourPage() {
   const { projectId, isLoading: projLoading } = useActiveProject();
 
   const [selectedDate, setSelectedDate] = useState(today);
+  const [workerSearch, setWorkerSearch] = useState("");
   const [attModal, setAttModal] = useState(false);
   const [attForm, setAttForm]   = useState<AttendanceManual>({
     worker_id: 0,
@@ -71,6 +72,11 @@ export default function LabourPage() {
     (a) => a.status === "present" || a.status === "half_day"
   ).length;
 
+  const filteredWorkers = (workers ?? []).filter((w) => {
+    const q = workerSearch.toLowerCase();
+    return !q || w.full_name.toLowerCase().includes(q) || w.worker_code.toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -98,7 +104,21 @@ export default function LabourPage() {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Registered Workers</h2>
-          <span className="text-xs text-stone-400">{workers?.length ?? 0} total</span>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Search workers…"
+                value={workerSearch}
+                onChange={(e) => setWorkerSearch(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <span className="text-xs text-stone-400 whitespace-nowrap">
+              {filteredWorkers.length} of {workers?.length ?? 0}
+            </span>
+          </div>
         </div>
         {(workers ?? []).length === 0 ? (
           <EmptyState title="No workers registered" description="Add workers to start tracking labour." />
@@ -115,7 +135,7 @@ export default function LabourPage() {
                 </tr>
               </thead>
               <tbody>
-                {(workers ?? []).map((w) => (
+                {filteredWorkers.map((w) => (
                   <tr key={w.id}>
                     <td>
                       <div className="flex items-center gap-3">

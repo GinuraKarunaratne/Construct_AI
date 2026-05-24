@@ -190,7 +190,7 @@ export default function DashboardPage() {
 
       {/* Overdue critical banner */}
       {isOverdue && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-300 rounded-xl">
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" strokeWidth={2} />
           <div>
             <p className="font-bold text-red-800 text-sm">Critical Schedule Delay</p>
@@ -217,7 +217,7 @@ export default function DashboardPage() {
               <div
                 key={a.id}
                 className={cn(
-                  "flex items-start gap-3 px-4 py-3 rounded-xl border text-sm",
+                  "flex items-start gap-3 px-4 py-3 rounded-2xl border text-sm",
                   cfg.card
                 )}
               >

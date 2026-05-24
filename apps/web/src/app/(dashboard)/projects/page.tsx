@@ -119,8 +119,8 @@ export default function ProjectsPage() {
               <div
                 key={p.id}
                 className={cn(
-                  "card hover:shadow-md transition-shadow duration-150",
-                  isOverdue && "border-red-200 bg-red-50/30"
+                  "bg-white rounded-2xl border border-stone-200/80 shadow-sm hover:shadow-md transition-shadow duration-150 overflow-hidden",
+                  isOverdue && "border-red-200 bg-red-50/20"
                 )}
               >
                 <div className="p-5">

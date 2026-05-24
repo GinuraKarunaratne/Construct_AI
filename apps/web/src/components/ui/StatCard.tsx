@@ -28,7 +28,7 @@ export function StatCard({ label, value, sub, tone = "neutral", Icon }: StatCard
   const t = TONE_MAP[tone];
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 p-5 hover:shadow-sm transition-shadow duration-150">
+    <div className="bg-white rounded-2xl border border-stone-200/80 shadow-sm p-5 hover:shadow-md transition-shadow duration-150">
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider leading-tight">
           {label}

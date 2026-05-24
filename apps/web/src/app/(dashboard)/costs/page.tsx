@@ -165,7 +165,7 @@ export default function CostsPage() {
             sub: "progress",
           },
         ].map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-stone-200 p-5">
+          <div key={card.label} className="bg-white rounded-2xl border border-stone-200/80 shadow-sm p-5">
             <p className="text-[11px] text-stone-400 uppercase font-semibold tracking-wide mb-1.5">
               {card.label}
             </p>
@@ -190,7 +190,7 @@ export default function CostsPage() {
       {prediction && (
         <div
           className={cn(
-            "rounded-xl border p-5",
+            "rounded-2xl border p-5",
             prediction.overrun_risk
               ? "bg-red-50 border-red-200"
               : "bg-green-50 border-green-200"

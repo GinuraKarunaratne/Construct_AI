@@ -21,27 +21,27 @@ type Variant =
   | "success"
   | "default";
 
-// Semantic, restrained — no rainbow, just functional color
+// Pill badges — border-based, no ring
 const VARIANT_MAP: Record<Variant, string> = {
-  completed:   "bg-green-100   text-green-700   ring-green-200/60",
-  in_progress: "bg-brand-50    text-brand-700   ring-brand-200/60",
-  not_started: "bg-stone-100   text-stone-500   ring-stone-200/60",
-  delayed:     "bg-red-100     text-red-700     ring-red-200/60",
-  critical:    "bg-red-100     text-red-700     ring-red-200/60",
-  high:        "bg-orange-100  text-orange-700  ring-orange-200/60",
-  medium:      "bg-amber-100   text-amber-700   ring-amber-200/60",
-  low:         "bg-stone-100   text-stone-500   ring-stone-200/60",
-  active:      "bg-green-100   text-green-700   ring-green-200/60",
-  approved:    "bg-green-100   text-green-700   ring-green-200/60",
-  draft:       "bg-stone-100   text-stone-500   ring-stone-200/60",
-  present:     "bg-green-100   text-green-700   ring-green-200/60",
-  absent:      "bg-red-100     text-red-700     ring-red-200/60",
-  half_day:    "bg-amber-100   text-amber-700   ring-amber-200/60",
-  leave:       "bg-violet-100  text-violet-700  ring-violet-200/60",
-  info:        "bg-sky-100     text-sky-700     ring-sky-200/60",
-  warning:     "bg-amber-100   text-amber-700   ring-amber-200/60",
-  success:     "bg-green-100   text-green-700   ring-green-200/60",
-  default:     "bg-stone-100   text-stone-600   ring-stone-200/60",
+  completed:   "bg-green-50   text-green-700   border-green-200",
+  in_progress: "bg-brand-50   text-brand-700   border-brand-200",
+  not_started: "bg-stone-100  text-stone-500   border-stone-200",
+  delayed:     "bg-red-50     text-red-600     border-red-200",
+  critical:    "bg-red-50     text-red-600     border-red-200",
+  high:        "bg-orange-50  text-orange-700  border-orange-200",
+  medium:      "bg-amber-50   text-amber-700   border-amber-200",
+  low:         "bg-stone-100  text-stone-500   border-stone-200",
+  active:      "bg-green-50   text-green-700   border-green-200",
+  approved:    "bg-green-50   text-green-700   border-green-200",
+  draft:       "bg-stone-100  text-stone-500   border-stone-200",
+  present:     "bg-green-50   text-green-700   border-green-200",
+  absent:      "bg-red-50     text-red-600     border-red-200",
+  half_day:    "bg-amber-50   text-amber-700   border-amber-200",
+  leave:       "bg-violet-50  text-violet-700  border-violet-200",
+  info:        "bg-sky-50     text-sky-700     border-sky-200",
+  warning:     "bg-amber-50   text-amber-700   border-amber-200",
+  success:     "bg-green-50   text-green-700   border-green-200",
+  default:     "bg-stone-100  text-stone-600   border-stone-200",
 };
 
 interface BadgeProps {
@@ -55,8 +55,8 @@ export function Badge({ label, variant = "default", className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-md",
-        "text-[11px] font-semibold capitalize ring-1",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full",
+        "text-[11px] font-semibold capitalize border",
         style,
         className
       )}

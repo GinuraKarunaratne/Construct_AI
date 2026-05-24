@@ -58,7 +58,7 @@
     @apply bg-stone-50 border-b border-stone-200;
   }
   .data-table thead th {
-    @apply text-left px-4 py-2.5 text-[11px] font-semibold text-stone-500 uppercase tracking-wider;
+    @apply text-left px-4 py-2.5 text-[11px] font-semibold text-stone-400 uppercase tracking-widest;
   }
   .data-table thead th.th-right {
     @apply text-right;
@@ -67,7 +67,7 @@
     @apply border-b border-stone-100 transition-colors duration-100;
   }
   .data-table tbody tr:hover {
-    @apply bg-orange-50/40;
+    @apply bg-stone-50/80;
   }
   .data-table tbody tr:last-child {
     @apply border-b-0;
@@ -81,43 +81,48 @@
 
   /* ── Card container ─────────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl border border-stone-200 overflow-hidden;
+    @apply bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-sm;
   }
   .card-header {
-    @apply flex items-center justify-between px-5 py-3.5 border-b border-stone-100;
+    @apply flex items-center justify-between px-5 py-4 border-b border-stone-100;
   }
   .card-title {
-    @apply text-sm font-semibold text-stone-700;
+    @apply text-sm font-semibold text-stone-800;
   }
 
   /* ── Primary button (orange) ────────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
   }
 
   /* ── Secondary button ───────────────────────────────────────────── */
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium rounded-lg border border-stone-200 transition-colors duration-150 disabled:opacity-50;
+    @apply inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium rounded-lg border border-stone-200 transition-colors duration-150 disabled:opacity-50 shadow-sm;
   }
 
   /* ── Ghost button ───────────────────────────────────────────────── */
   .btn-ghost {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 text-sm font-medium rounded-lg transition-colors duration-150;
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 text-sm font-medium rounded-lg transition-colors duration-150;
   }
 
   /* ── Form input ─────────────────────────────────────────────────── */
   .form-input {
-    @apply w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-shadow;
+    @apply w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-shadow;
   }
 
   /* ── Form label ─────────────────────────────────────────────────── */
   .form-label {
-    @apply block text-sm font-medium text-stone-700 mb-1.5;
+    @apply block text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5;
+  }
+
+  /* ── Inline search — pill-shaped, used in card headers ─────────── */
+  .search-input {
+    @apply pl-8 pr-3 py-1.5 text-xs rounded-full border border-stone-200 bg-stone-50 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 focus:bg-white transition-all w-44;
   }
 
   /* ── Page heading ───────────────────────────────────────────────── */
   .page-title {
-    @apply text-xl font-bold text-stone-900 tracking-tight;
+    @apply text-2xl font-bold text-stone-900 tracking-tight;
   }
   .page-subtitle {
     @apply text-sm text-stone-500 mt-0.5;

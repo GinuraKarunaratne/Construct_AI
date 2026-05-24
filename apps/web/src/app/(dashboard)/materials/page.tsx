@@ -8,7 +8,7 @@ import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, getStockStatus, STOCK_STATUS_META } from "@/lib/utils";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TXN_TYPES = ["delivery", "issue", "return", "wastage", "adjustment"] as const;
@@ -18,6 +18,7 @@ export default function MaterialsPage() {
   const { projectId, isLoading: projLoading } = useActiveProject();
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
+  const [materialSearch, setMaterialSearch] = useState("");
   const [txnModal, setTxnModal]   = useState(false);
   const [txnForm, setTxnForm]     = useState<TransactionCreate>({
     transaction_type: "delivery",
@@ -103,6 +104,11 @@ export default function MaterialsPage() {
     .filter((m) => m.stockStatus !== "in_stock")
     .sort((a, b) => URGENCY_ORDER[a.stockStatus] - URGENCY_ORDER[b.stockStatus]);
 
+  const filteredMaterials = materialsWithStatus.filter((m) => {
+    const q = materialSearch.toLowerCase();
+    return !q || m.name.toLowerCase().includes(q) || (m.category ?? "").toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -117,7 +123,7 @@ export default function MaterialsPage() {
 
       {/* Stock attention banner */}
       {urgentItems.length > 0 && (
-        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" strokeWidth={2} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-800">
@@ -144,7 +150,7 @@ export default function MaterialsPage() {
                   <span
                     key={m.id}
                     className={cn(
-                      "px-2.5 py-1 rounded-md text-xs font-semibold border",
+                      "px-2.5 py-1 rounded-full text-xs font-semibold border",
                       meta.chipClass
                     )}
                   >
@@ -161,6 +167,21 @@ export default function MaterialsPage() {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Inventory</h2>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Search materials…"
+                value={materialSearch}
+                onChange={(e) => setMaterialSearch(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <span className="text-xs text-stone-400 whitespace-nowrap">
+              {filteredMaterials.length} items
+            </span>
+          </div>
         </div>
         {materialsWithStatus.length === 0 ? (
           <EmptyState title="No materials found" description="Add materials to start tracking inventory." />
@@ -179,7 +200,7 @@ export default function MaterialsPage() {
                 </tr>
               </thead>
               <tbody>
-                {materialsWithStatus.map((m) => {
+                {filteredMaterials.map((m) => {
                   const meta = STOCK_STATUS_META[m.stockStatus];
                   const isUrgent = m.stockStatus === "out_of_stock" || m.stockStatus === "low_stock";
                   return (
