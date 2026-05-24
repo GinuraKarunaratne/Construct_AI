@@ -1,7 +1,7 @@
 {
   "name": "@constructai/mobile",
   "version": "1.0.0",
-  "main": "./index.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -23,15 +23,15 @@
     "expo-status-bar": "^3.0.9",
     "react": "^19.1.0",
     "react-native": "^0.81.5",
-    "react-native-safe-area-context": "^5.6.0",
-    "react-native-screens": "^4.16.0"
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@babel/plugin-transform-class-properties": "^7.28.6",
     "@babel/plugin-transform-private-methods": "^7.28.6",
-    "@types/react": "^19.1.10",
-    "babel-preset-expo": "^56.0.12",
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.10",
     "typescript": "^5.3.0"
   }
 }
