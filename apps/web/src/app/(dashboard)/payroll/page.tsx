@@ -98,51 +98,24 @@ export default function PayrollPage() {
         </button>
       </div>
 
-      {/* Summary chips */}
+      {/* Summary KPI tiles */}
       {(runs ?? []).length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            {
-              label: "Total Runs",
-              value: String(runs?.length ?? 0),
-              icon: FileText,
-              bg: "bg-stone-50 border-stone-200 text-stone-700",
-              iconBg: "bg-stone-100 text-stone-500",
-            },
-            {
-              label: "Approved",
-              value: String(approvedRuns),
-              icon: CheckCircle2,
-              bg: "bg-green-50 border-green-200 text-green-800",
-              iconBg: "bg-green-100 text-green-600",
-            },
-            {
-              label: "Draft",
-              value: String(draftRuns),
-              icon: FileText,
-              bg: "bg-amber-50 border-amber-200 text-amber-800",
-              iconBg: "bg-amber-100 text-amber-600",
-            },
-            {
-              label: "Workers Registered",
-              value: String(workers?.length ?? 0),
-              icon: Users,
-              bg: "bg-brand-50 border-brand-200 text-brand-800",
-              iconBg: "bg-brand-100 text-brand-600",
-            },
-          ].map((chip) => (
-            <div
-              key={chip.label}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-sm ${chip.bg}`}
-            >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${chip.iconBg}`}>
-                <chip.icon className="w-4 h-4" strokeWidth={2} />
+            { label: "Total Runs",         value: String(runs?.length ?? 0),  Icon: FileText      },
+            { label: "Approved",           value: String(approvedRuns),       Icon: CheckCircle2  },
+            { label: "Draft",              value: String(draftRuns),          Icon: FileText      },
+            { label: "Workers Registered", value: String(workers?.length ?? 0), Icon: Users       },
+          ].map((tile) => (
+            <div key={tile.label} className="kpi-tile">
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-10 h-10 rounded-lg bg-surface-subtle flex items-center justify-center flex-shrink-0">
+                  <tile.Icon className="w-5 h-5 text-ink-700" strokeWidth={1.75} />
+                </div>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-60">
-                  {chip.label}
-                </p>
-                <p className="text-xl font-bold leading-tight">{chip.value}</p>
+                <p className="kpi-label">{tile.label}</p>
+                <p className="kpi-value mt-1.5">{tile.value}</p>
               </div>
             </div>
           ))}
@@ -153,7 +126,7 @@ export default function PayrollPage() {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Payroll Runs</h2>
-          <span className="text-xs text-stone-400">{runs?.length ?? 0} total</span>
+          <span className="text-xs text-gray-400">{runs?.length ?? 0} total</span>
         </div>
         {(runs ?? []).length === 0 ? (
           <EmptyState
@@ -175,11 +148,11 @@ export default function PayrollPage() {
               <tbody>
                 {(runs ?? []).map((run) => (
                   <tr key={run.id}>
-                    <td className="font-mono text-xs text-stone-400">
+                    <td className="font-mono text-xs text-gray-400">
                       #{run.id}
                     </td>
                     <td>
-                      <p className="font-semibold text-stone-800">
+                      <p className="font-semibold text-gray-800">
                         {run.period_start} → {run.period_end}
                       </p>
                     </td>
@@ -190,7 +163,7 @@ export default function PayrollPage() {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => setDetailRunId(run.id)}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-ink-700 hover:text-white hover:bg-ink-900 rounded-lg border border-surface-border hover:border-ink-900 transition-colors duration-150"
                         >
                           View Details
                         </button>
@@ -198,7 +171,7 @@ export default function PayrollPage() {
                           <button
                             onClick={() => approve.mutate(run.id)}
                             disabled={approve.isPending}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg border border-green-600 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg border border-emerald-600 transition-colors disabled:opacity-50"
                           >
                             <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} />
                             Approve
@@ -221,24 +194,32 @@ export default function PayrollPage() {
             <div>
               <h2 className="card-title">
                 Payroll Detail
-                <span className="ml-2 font-normal text-stone-400 text-xs">
+                <span className="ml-2 font-normal text-gray-400 text-xs">
                   {detailRun.period_start} → {detailRun.period_end}
                 </span>
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-stone-400">Status:</span>
+                <span className="text-xs text-gray-400">Status:</span>
                 <Badge label={detailRun.status} variant={detailRun.status} />
               </div>
             </div>
             {runTotal != null && (
               <div className="text-right">
-                <p className="text-xs text-stone-400">Total Net Pay</p>
-                <p className="text-lg font-bold text-stone-900">
+                <p className="text-xs text-gray-400">Total Net Pay</p>
+                <p className="text-lg font-bold text-gray-900">
                   {formatCurrency(runTotal)}
                 </p>
               </div>
             )}
           </div>
+          {/* Formula note */}
+          <div className="px-5 pb-3 flex items-center gap-2 text-xs text-gray-400">
+            <span className="font-mono bg-gray-50 border border-gray-100 rounded px-2 py-0.5">
+              Gross Pay − Cash Advances = Net Pay
+            </span>
+            <span>· Advances are cash drawn by workers during the pay period and recovered at payout.</span>
+          </div>
+
           {detailRun.lines && (
             <div className="overflow-x-auto">
               <table className="data-table">
@@ -248,7 +229,11 @@ export default function PayrollPage() {
                     <th className="th-right">Days</th>
                     <th className="th-right">OT Hours</th>
                     <th className="th-right">Gross Pay</th>
-                    <th className="th-right">Advances</th>
+                    <th className="th-right">
+                      <span title="Cash advances drawn by the worker during this period are deducted from gross pay to arrive at net pay.">
+                        Advances ⓘ
+                      </span>
+                    </th>
                     <th className="th-right">Net Pay</th>
                   </tr>
                 </thead>
@@ -258,18 +243,18 @@ export default function PayrollPage() {
                     return (
                       <tr key={line.id}>
                         <td>
-                          <p className="font-semibold text-stone-800">
+                          <p className="font-semibold text-gray-800">
                             {w?.full_name ?? `Worker #${line.worker_id}`}
                           </p>
-                          <p className="text-xs text-stone-400">{w?.skill_type}</p>
+                          <p className="text-xs text-gray-400">{w?.skill_type}</p>
                         </td>
-                        <td className="td-right text-stone-700 tabular-nums">
+                        <td className="td-right text-gray-700 tabular-nums">
                           {line.days_worked}
                         </td>
-                        <td className="td-right text-stone-700 tabular-nums">
+                        <td className="td-right text-gray-700 tabular-nums">
                           {line.overtime_hours}h
                         </td>
-                        <td className="td-right text-stone-700 tabular-nums">
+                        <td className="td-right text-gray-700 tabular-nums">
                           {formatCurrency(line.gross_pay)}
                         </td>
                         <td className="td-right tabular-nums">
@@ -278,20 +263,20 @@ export default function PayrollPage() {
                               -{formatCurrency(line.advances)}
                             </span>
                           ) : (
-                            <span className="text-stone-400">—</span>
+                            <span className="text-gray-400">—</span>
                           )}
                         </td>
-                        <td className="td-right font-semibold text-stone-900 tabular-nums">
+                        <td className="td-right font-semibold text-gray-900 tabular-nums">
                           {formatCurrency(line.net_pay)}
                         </td>
                       </tr>
                     );
                   })}
-                  <tr className="border-t-2 border-stone-200 bg-stone-50">
-                    <td className="px-5 py-3 font-semibold text-stone-700" colSpan={5}>
+                  <tr className="border-t-2 border-gray-200 bg-gray-50">
+                    <td className="px-5 py-3 font-semibold text-gray-700" colSpan={5}>
                       Total
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-stone-900 tabular-nums">
+                    <td className="px-5 py-3 text-right font-bold text-gray-900 tabular-nums">
                       {formatCurrency(runTotal ?? 0)}
                     </td>
                   </tr>
@@ -311,7 +296,7 @@ export default function PayrollPage() {
               {genErr}
             </div>
           )}
-          <p className="text-sm text-stone-500 leading-relaxed">
+          <p className="text-sm text-gray-500 leading-relaxed">
             Payroll is calculated from actual attendance records for the selected
             period. Workers are paid based on days present plus overtime.
           </p>
@@ -337,7 +322,7 @@ export default function PayrollPage() {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setGenModal(false)}

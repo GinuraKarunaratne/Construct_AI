@@ -37,6 +37,13 @@ class ExpenseOut(BaseModel):
     created_by: int | None = None
 
 
+class BudgetVsActualItem(BaseModel):
+    category: str
+    budgeted: float
+    actual: float
+    variance: float   # actual - budgeted (positive = over budget)
+
+
 class CostSummary(BaseModel):
     total_budget: float
     actual_cost_to_date: float
@@ -46,6 +53,7 @@ class CostSummary(BaseModel):
     remaining_budget: float
     budget_used_pct: float
     overrun_risk: bool
+    budget_items_vs_actual: list[BudgetVsActualItem] = []
 
 
 class PredictionOut(BaseModel):

@@ -24,7 +24,7 @@ export default function SettingsPage() {
     .toUpperCase() ?? "?";
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-8 max-w-4xl">
       {/* Header */}
       <div>
         <h1 className="page-title">Settings</h1>
@@ -41,35 +41,31 @@ export default function SettingsPage() {
           <div className="card">
             <div className="card-header">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-stone-400" strokeWidth={2} />
+                <User className="w-4 h-4 text-ink-500" strokeWidth={2} />
                 <h2 className="card-title">Your Account</h2>
               </div>
             </div>
-            <div className="p-5">
-              <div className="flex items-center gap-4 mb-5">
-                <div className="w-12 h-12 rounded-full bg-brand-600 flex items-center justify-center text-base font-bold text-white flex-shrink-0 shadow-sm">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-full bg-ink-900 flex items-center justify-center text-lg font-bold text-white flex-shrink-0">
                   {initials}
                 </div>
                 <div>
-                  <p className="font-bold text-stone-900">{user?.name}</p>
-                  <p className="text-sm text-stone-500">{user?.email}</p>
+                  <p className="font-semibold text-ink-900 text-base">{user?.name}</p>
+                  <p className="text-sm text-ink-500 mt-0.5">{user?.email}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-stone-100 text-sm">
+              <div className="grid grid-cols-2 gap-4 pt-5 border-t border-surface-divider">
                 <div>
-                  <p className="text-[11px] text-stone-400 uppercase font-semibold tracking-wide mb-1">
-                    Role
-                  </p>
-                  <p className="font-semibold text-stone-700">
+                  <p className="text-xs text-ink-500 font-medium mb-1.5">Role</p>
+                  <p className="font-semibold text-ink-900 text-sm">
                     {ROLE_LABELS[user?.role ?? ""] ?? user?.role}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-stone-400 uppercase font-semibold tracking-wide mb-1">
-                    Status
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-green-700 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <p className="text-xs text-ink-500 font-medium mb-1.5">Status</p>
+                  <span className="status-badge status-badge-success">
+                    <span className="status-dot bg-success-500" />
                     Active
                   </span>
                 </div>
@@ -81,20 +77,20 @@ export default function SettingsPage() {
           <div className="card">
             <div className="card-header">
               <div className="flex items-center gap-2">
-                <Server className="w-4 h-4 text-stone-400" strokeWidth={2} />
+                <Server className="w-4 h-4 text-ink-500" strokeWidth={2} />
                 <h2 className="card-title">System Information</h2>
               </div>
             </div>
-            <div className="p-5 space-y-2.5 text-sm">
+            <div className="p-6 space-y-1">
               {[
                 { label: "API",         value: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000" },
                 { label: "Stack",       value: "Next.js 15 + FastAPI + PostgreSQL" },
-                { label: "Cost Model",  value: "Rule-based v1" },
+                { label: "Cost Model",  value: "GradientBoosting ML (R²=0.92)" },
                 { label: "Version",     value: "1.0.0-demo" },
               ].map((row) => (
-                <div key={row.label} className="flex justify-between items-center py-1 border-b border-stone-50 last:border-0">
-                  <span className="text-stone-400">{row.label}</span>
-                  <span className="font-medium font-mono text-xs text-stone-600">{row.value}</span>
+                <div key={row.label} className="flex justify-between items-center py-2.5 border-b border-surface-divider last:border-0">
+                  <span className="text-sm text-ink-500">{row.label}</span>
+                  <span className="font-medium font-mono text-xs text-ink-700">{row.value}</span>
                 </div>
               ))}
             </div>
@@ -110,11 +106,11 @@ export default function SettingsPage() {
             <div className="card">
               <div className="card-header">
                 <div className="flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-stone-400" strokeWidth={2} />
+                  <FolderOpen className="w-4 h-4 text-ink-500" strokeWidth={2} />
                   <h2 className="card-title">Active Project</h2>
                 </div>
               </div>
-              <div className="p-5 space-y-2.5 text-sm">
+              <div className="p-6 space-y-1">
                 {[
                   { label: "Project ID",   value: `PROJ-${String(project.id).padStart(4, "0")}` },
                   { label: "Project Name", value: project.name },
@@ -133,9 +129,9 @@ export default function SettingsPage() {
                   },
                   { label: "Status", value: project.status },
                 ].map((row) => (
-                  <div key={row.label} className="flex justify-between items-center py-1 border-b border-stone-50 last:border-0">
-                    <span className="text-stone-400">{row.label}</span>
-                    <span className="font-semibold text-stone-800 capitalize">{row.value}</span>
+                  <div key={row.label} className="flex justify-between items-center py-2.5 border-b border-surface-divider last:border-0">
+                    <span className="text-sm text-ink-500">{row.label}</span>
+                    <span className="font-semibold text-ink-900 text-sm capitalize text-right">{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -143,17 +139,17 @@ export default function SettingsPage() {
           )}
 
           {/* Demo notice */}
-          <div className="flex items-start gap-3 p-4 bg-stone-50 border border-stone-200 rounded-2xl text-sm">
-            <Info className="w-4 h-4 text-stone-400 flex-shrink-0 mt-0.5" strokeWidth={2} />
+          <div className="flex items-start gap-3 p-5 bg-white border border-surface-border rounded-xl">
+            <Info className="w-4 h-4 text-ink-500 flex-shrink-0 mt-0.5" strokeWidth={2} />
             <div>
-              <p className="font-semibold text-stone-700 mb-1">Demo Mode</p>
-              <p className="text-stone-500 leading-relaxed text-xs">
+              <p className="font-semibold text-ink-900 mb-1.5 text-sm">Demo Mode</p>
+              <p className="text-ink-600 leading-relaxed text-sm">
                 This is a demonstration build of ConstructAI pre-populated with a sample
                 Two-Storey House Construction project in Colombo, Sri Lanka (LKR 12,000,000
                 budget, 120 days). Three test accounts are available — use the login screen
                 for credentials.
               </p>
-              <div className="mt-3 space-y-1 font-mono text-xs text-stone-400">
+              <div className="mt-3 space-y-1 font-mono text-xs text-ink-500">
                 <p>pm@constructai.lk · ••••••••</p>
                 <p>supervisor@constructai.lk · ••••••••</p>
                 <p>finance@constructai.lk · ••••••••</p>

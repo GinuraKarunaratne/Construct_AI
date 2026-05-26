@@ -1,15 +1,18 @@
 from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.core.deps import DbSession, CurrentUserId
-from app.models.project import Project
+from app.core.rbac import require_role, get_accessible_project_ids
+from app.models.project import Project, ProjectMember
 from app.models.task import Task
 from app.models.labour import Worker, Attendance
 from app.models.material import MaterialItem
 from app.models.alert import Alert
+from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectOut, ProjectDashboard
 from app.services.cost_service import get_cost_summary
 from app.services.material_service import get_stock
@@ -17,34 +20,77 @@ from app.services.material_service import get_stock
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
+def _accessible_filter(db: Session, user: User):
+    """Return SQLAlchemy WHERE clause for projects this user may access."""
+    ids = get_accessible_project_ids(db, user)
+    if ids is None:
+        return None   # admin — no filter
+    return Project.id.in_(ids) if ids else Project.id.in_([-1])   # empty set
+
+
+# ── List & Create ──────────────────────────────────────────────────────────────
+
 @router.get("", response_model=list[ProjectOut])
-def list_projects(db: DbSession, user_id: CurrentUserId):
-    projects = db.execute(select(Project)).scalars().all()
+def list_projects(
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("viewer"))],
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    q = select(Project)
+    f = _accessible_filter(db, user)
+    if f is not None:
+        q = q.where(f)
+    projects = db.execute(q.offset(skip).limit(limit)).scalars().all()
     return [ProjectOut.model_validate(p) for p in projects]
 
 
 @router.post("", response_model=ProjectOut, status_code=201)
-def create_project(req: ProjectCreate, db: DbSession, user_id: CurrentUserId):
-    project = Project(**req.model_dump(), created_by=user_id)
+def create_project(
+    req: ProjectCreate,
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("project_manager"))],
+):
+    project = Project(**req.model_dump(), created_by=user.id, company_id=user.company_id)
     db.add(project)
+    db.flush()
+    # Auto-add creator as project_manager member
+    db.add(ProjectMember(project_id=project.id, user_id=user.id, project_role="project_manager"))
     db.commit()
     db.refresh(project)
     return ProjectOut.model_validate(project)
 
 
+# ── Single project ─────────────────────────────────────────────────────────────
+
 @router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int, db: DbSession, user_id: CurrentUserId):
+def get_project(
+    project_id: int,
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("viewer"))],
+):
     project = db.get(Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
+    ids = get_accessible_project_ids(db, user)
+    if ids is not None and project_id not in ids:
+        raise HTTPException(403, "Access denied")
     return ProjectOut.model_validate(project)
 
 
 @router.patch("/{project_id}", response_model=ProjectOut)
-def update_project(project_id: int, req: ProjectUpdate, db: DbSession, user_id: CurrentUserId):
+def update_project(
+    project_id: int,
+    req: ProjectUpdate,
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("project_manager"))],
+):
     project = db.get(Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
+    ids = get_accessible_project_ids(db, user)
+    if ids is not None and project_id not in ids:
+        raise HTTPException(403, "Access denied")
     for field, val in req.model_dump(exclude_none=True).items():
         setattr(project, field, val)
     db.commit()
@@ -53,19 +99,35 @@ def update_project(project_id: int, req: ProjectUpdate, db: DbSession, user_id: 
 
 
 @router.delete("/{project_id}", status_code=204)
-def delete_project(project_id: int, db: DbSession, user_id: CurrentUserId):
+def delete_project(
+    project_id: int,
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("project_manager"))],
+):
     project = db.get(Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
+    ids = get_accessible_project_ids(db, user)
+    if ids is not None and project_id not in ids:
+        raise HTTPException(403, "Access denied")
     db.delete(project)
     db.commit()
 
 
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+
 @router.get("/{project_id}/dashboard", response_model=ProjectDashboard)
-def project_dashboard(project_id: int, db: DbSession, user_id: CurrentUserId):
+def project_dashboard(
+    project_id: int,
+    db: DbSession,
+    user: Annotated[User, Depends(require_role("viewer"))],
+):
     project = db.get(Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
+    ids = get_accessible_project_ids(db, user)
+    if ids is not None and project_id not in ids:
+        raise HTTPException(403, "Access denied")
 
     tasks = db.execute(select(Task).where(Task.project_id == project_id)).scalars().all()
     total_tasks = len(tasks)
@@ -73,7 +135,9 @@ def project_dashboard(project_id: int, db: DbSession, user_id: CurrentUserId):
     delayed = sum(1 for t in tasks if t.status == "delayed")
     progress = (sum(t.progress_percentage for t in tasks) / total_tasks) if total_tasks else 0
 
-    workers = db.execute(select(Worker).where(Worker.project_id == project_id, Worker.is_active == True)).scalars().all()  # noqa: E712
+    workers = db.execute(
+        select(Worker).where(Worker.project_id == project_id, Worker.is_active == True)  # noqa: E712
+    ).scalars().all()
     today = date.today()
     today_att = db.execute(
         select(func.count()).where(

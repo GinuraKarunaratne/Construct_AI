@@ -2,10 +2,16 @@
  * API client built on React Native's native fetch.
  * Does NOT use axios — avoids DOMException / browser-global issues in Hermes.
  * Exposes the same .get() / .post() interface so all screens work unchanged.
+ *
+ * ── HOW TO CHANGE THE SERVER IP ──────────────────────────────────────────────
+ * Run this in PowerShell/CMD on your PC:  ipconfig
+ * Find the IPv4 address of your WiFi adapter (e.g. 192.168.x.x)
+ * Update API_BASE below to match.
+ * Both PC and phone must be on the SAME WiFi network.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE = "http://192.168.1.4:8000/api/v1";
+export const API_BASE = "http://192.168.1.4:8000/api/v1";
 const TIMEOUT_MS = 15_000;
 
 // ── Error shape that matches what app screens already expect ──────────────────
@@ -18,12 +24,28 @@ export class ApiError extends Error {
   }
 }
 
+// Network-level error (no response received — server unreachable)
+export class NetworkError extends Error {
+  constructor(cause?: string) {
+    super(cause ?? "Network request failed");
+    this.name = "NetworkError";
+  }
+}
+
 // ── Fetch with timeout ────────────────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err: unknown) {
+    // Convert fetch/network failures into a typed NetworkError so callers
+    // can distinguish "server rejected" from "couldn't reach server at all".
+    const msg = (err instanceof Error) ? err.message : String(err);
+    if (msg.includes("aborted") || msg.includes("timed out") || msg.includes("Aborted")) {
+      throw new NetworkError(`Request timed out after ${TIMEOUT_MS / 1000}s — is the server running at ${API_BASE}?`);
+    }
+    throw new NetworkError(msg);
   } finally {
     clearTimeout(timer);
   }

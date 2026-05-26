@@ -3,20 +3,59 @@
 import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
-import { materialsApi, TransactionCreate } from "@/services/materials";
+import { materialsApi, TransactionCreate, MaterialCreate } from "@/services/materials";
 import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, getStockStatus, STOCK_STATUS_META } from "@/lib/utils";
-import { AlertTriangle, Plus, Search } from "lucide-react";
+import { AlertTriangle, Plus, Search, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TXN_TYPES = ["delivery", "issue", "return", "wastage", "adjustment"] as const;
+
+const MATERIAL_CATEGORIES = [
+  "Concrete & Cement",
+  "Steel & Rebar",
+  "Timber & Wood",
+  "Bricks & Blocks",
+  "Sand & Aggregates",
+  "Roofing",
+  "Electrical",
+  "Plumbing",
+  "Finishing",
+  "Equipment",
+  "Other",
+];
+
+const UNITS = ["bags", "kg", "tonnes", "m³", "m²", "m", "litres", "pieces", "sheets", "rolls", "units"];
+
+/** Generate a human-readable unit cost label like "Cost per kg", "Cost per bag" */
+function unitCostLabel(unit: string): string {
+  // De-pluralise common units for better readability
+  const singular: Record<string, string> = {
+    bags: "bag", kg: "kg", tonnes: "tonne", "m³": "m³", "m²": "m²",
+    m: "m", litres: "litre", pieces: "piece", sheets: "sheet", rolls: "roll", units: "unit",
+  };
+  return `Cost per ${singular[unit] ?? unit} (LKR)`;
+}
 
 export default function MaterialsPage() {
   const qc = useQueryClient();
   const { projectId, isLoading: projLoading } = useActiveProject();
 
+  // ── Add Material modal ────────────────────────────────────────────────────
+  const [addMatModal, setAddMatModal] = useState(false);
+  const [addMatForm, setAddMatForm] = useState<MaterialCreate>({
+    name: "",
+    category: "",
+    unit: "units",
+    estimated_quantity: 0,
+    reorder_level: 0,
+    unit_cost_estimate: 0,
+  });
+  const [addMatErr, setAddMatErr] = useState<string | null>(null);
+
+  // ── Update Stock modal ────────────────────────────────────────────────────
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   const [materialSearch, setMaterialSearch] = useState("");
   const [txnModal, setTxnModal]   = useState(false);
@@ -43,6 +82,24 @@ export default function MaterialsPage() {
     enabled: !!projectId,
   });
 
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const createMat = useMutation({
+    mutationFn: (data: MaterialCreate) => materialsApi.create(projectId!, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["materials", projectId] });
+      qc.invalidateQueries({ queryKey: ["dashboard", projectId] });
+      setAddMatModal(false);
+      setAddMatErr(null);
+      setAddMatForm({ name: "", category: "", unit: "units", estimated_quantity: 0, reorder_level: 0, unit_cost_estimate: 0 });
+    },
+    onError: (e: unknown) => {
+      setAddMatErr(
+        (e as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail ?? "Failed to add material"
+      );
+    },
+  });
+
   const addTxn = useMutation({
     mutationFn: ({ id, data }: { id: number; data: TransactionCreate }) =>
       materialsApi.addTransaction(id, data),
@@ -61,6 +118,12 @@ export default function MaterialsPage() {
     },
   });
 
+  function openAddMat() {
+    setAddMatErr(null);
+    setAddMatForm({ name: "", category: "", unit: "units", estimated_quantity: 0, reorder_level: 0, unit_cost_estimate: 0 });
+    setAddMatModal(true);
+  }
+
   function openTxn(materialId: number) {
     setSelectedMaterialId(materialId);
     setTxnErr(null);
@@ -76,6 +139,15 @@ export default function MaterialsPage() {
     setTxnModal(true);
   }
 
+  function handleAddMatSubmit(e: FormEvent) {
+    e.preventDefault();
+    setAddMatErr(null);
+    createMat.mutate({
+      ...addMatForm,
+      category: addMatForm.category || undefined,
+    });
+  }
+
   function handleTxnSubmit(e: FormEvent) {
     e.preventDefault();
     if (!selectedMaterialId) return;
@@ -87,13 +159,11 @@ export default function MaterialsPage() {
 
   const selectedMaterial = materials?.find((m) => m.id === selectedMaterialId);
 
-  // Compute stock status for every material
   const materialsWithStatus = (materials ?? []).map((m) => ({
     ...m,
     stockStatus: getStockStatus(m.current_stock, m.reorder_level),
   }));
 
-  // Items needing attention — sorted: out_of_stock first, then low_stock, then at_reorder
   const URGENCY_ORDER: Record<string, number> = {
     out_of_stock: 0,
     low_stock:    1,
@@ -119,11 +189,15 @@ export default function MaterialsPage() {
             {materials?.length ?? 0} items &middot; {urgentItems.length} need attention
           </p>
         </div>
+        <button onClick={openAddMat} className="btn-primary">
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          Add Material
+        </button>
       </div>
 
       {/* Stock attention banner */}
       {urgentItems.length > 0 && (
-        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" strokeWidth={2} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-amber-800">
@@ -147,15 +221,16 @@ export default function MaterialsPage() {
               {urgentItems.map((m) => {
                 const meta = STOCK_STATUS_META[m.stockStatus];
                 return (
-                  <span
+                  <button
                     key={m.id}
+                    onClick={() => openTxn(m.id)}
                     className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-semibold border",
+                      "px-2.5 py-1 rounded-full text-xs font-semibold border transition-opacity hover:opacity-80",
                       meta.chipClass
                     )}
                   >
                     {m.name} — {m.current_stock <= 0 ? "0" : m.current_stock.toFixed(0)} {m.unit}
-                  </span>
+                  </button>
                 );
               })}
             </div>
@@ -169,7 +244,7 @@ export default function MaterialsPage() {
           <h2 className="card-title">Inventory</h2>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
               <input
                 type="search"
                 placeholder="Search materials…"
@@ -178,13 +253,23 @@ export default function MaterialsPage() {
                 className="search-input"
               />
             </div>
-            <span className="text-xs text-stone-400 whitespace-nowrap">
+            <span className="text-xs text-gray-400 whitespace-nowrap">
               {filteredMaterials.length} items
             </span>
           </div>
         </div>
         {materialsWithStatus.length === 0 ? (
-          <EmptyState title="No materials found" description="Add materials to start tracking inventory." />
+          <EmptyState
+            icon={<Package className="w-5 h-5" />}
+            title="No materials yet"
+            description="Add your first material to start tracking inventory and stock levels."
+            action={
+              <button onClick={openAddMat} className="btn-primary">
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                Add Material
+              </button>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -203,31 +288,48 @@ export default function MaterialsPage() {
                 {filteredMaterials.map((m) => {
                   const meta = STOCK_STATUS_META[m.stockStatus];
                   const isUrgent = m.stockStatus === "out_of_stock" || m.stockStatus === "low_stock";
+                  // Stock bar: pct of estimated_quantity
+                  const stockPct = m.estimated_quantity > 0
+                    ? Math.min((m.current_stock / m.estimated_quantity) * 100, 100)
+                    : 0;
+                  const barColor = m.stockStatus === "out_of_stock" ? "bg-red-500"
+                    : m.stockStatus === "low_stock" ? "bg-red-400"
+                    : m.stockStatus === "at_reorder" ? "bg-amber-400"
+                    : "bg-green-500";
+
                   return (
                     <tr key={m.id}>
                       <td>
-                        <p className={cn("font-semibold", isUrgent ? "text-red-700" : "text-stone-800")}>
+                        <p className={cn("font-semibold", isUrgent ? "text-red-700" : "text-gray-800")}>
                           {m.name}
                         </p>
-                        <p className="text-xs text-stone-400 mt-0.5">{m.unit}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{m.unit}</p>
                       </td>
-                      <td className="text-stone-500">{m.category ?? "—"}</td>
+                      <td className="text-gray-500">{m.category ?? "—"}</td>
                       <td className="td-right">
-                        <span className={cn(
-                          "font-bold tabular-nums",
-                          m.stockStatus === "out_of_stock" ? "text-red-600"
-                          : m.stockStatus === "low_stock"   ? "text-red-500"
-                          : m.stockStatus === "at_reorder"  ? "text-amber-600"
-                          : "text-stone-800"
-                        )}>
-                          {m.current_stock.toFixed(0)}
-                        </span>
-                        <span className="text-stone-400 ml-1 text-xs">{m.unit}</span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={cn(
+                            "font-bold tabular-nums",
+                            m.stockStatus === "out_of_stock" ? "text-red-600"
+                            : m.stockStatus === "low_stock"   ? "text-red-500"
+                            : m.stockStatus === "at_reorder"  ? "text-amber-600"
+                            : "text-gray-800"
+                          )}>
+                            {m.current_stock.toFixed(0)}
+                            <span className="text-gray-400 ml-1 text-xs font-normal">{m.unit}</span>
+                          </span>
+                          {m.estimated_quantity > 0 && (
+                            <div className="w-16 progress-track h-1.5">
+                              <div className={cn("progress-bar h-full", barColor)}
+                                style={{ width: `${stockPct}%` }} />
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="td-right text-stone-500 tabular-nums">
+                      <td className="td-right text-gray-500 tabular-nums">
                         {m.reorder_level} {m.unit}
                       </td>
-                      <td className="td-right text-stone-600 tabular-nums">
+                      <td className="td-right text-gray-600 tabular-nums">
                         {formatCurrency(m.unit_cost_estimate)}
                       </td>
                       <td>
@@ -236,7 +338,7 @@ export default function MaterialsPage() {
                       <td className="td-right">
                         <button
                           onClick={() => openTxn(m.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:text-white hover:bg-brand-600 rounded-lg border border-brand-200 hover:border-brand-600 transition-colors duration-150"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:text-white hover:bg-ink-900 rounded-lg border border-surface-border hover:border-ink-900 transition-colors duration-150"
                         >
                           <Plus className="w-3 h-3" strokeWidth={2.5} />
                           Update Stock
@@ -256,7 +358,7 @@ export default function MaterialsPage() {
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">Recent Transactions</h2>
-            <span className="text-xs text-stone-400">Last 15</span>
+            <span className="text-xs text-gray-400">Last 15</span>
           </div>
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -276,8 +378,8 @@ export default function MaterialsPage() {
                   const isOut = tx.transaction_type === "issue" || tx.transaction_type === "wastage";
                   return (
                     <tr key={tx.id}>
-                      <td className="text-stone-500 tabular-nums">{tx.transaction_date}</td>
-                      <td className="font-medium text-stone-800">{mat?.name ?? "—"}</td>
+                      <td className="text-gray-500 tabular-nums">{tx.transaction_date}</td>
+                      <td className="font-medium text-gray-800">{mat?.name ?? "—"}</td>
                       <td>
                         <Badge
                           label={tx.transaction_type}
@@ -293,10 +395,10 @@ export default function MaterialsPage() {
                         <span className={isOut ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
                           {isOut ? "−" : "+"}{tx.quantity}
                         </span>
-                        <span className="text-stone-400 ml-1 text-xs font-normal">{mat?.unit}</span>
+                        <span className="text-gray-400 ml-1 text-xs font-normal">{mat?.unit}</span>
                       </td>
-                      <td className="text-stone-500">{tx.supplier_name ?? "—"}</td>
-                      <td className="font-mono text-xs text-stone-400">{tx.reference_no ?? "—"}</td>
+                      <td className="text-gray-500">{tx.supplier_name ?? "—"}</td>
+                      <td className="font-mono text-xs text-gray-400">{tx.reference_no ?? "—"}</td>
                     </tr>
                   );
                 })}
@@ -306,7 +408,106 @@ export default function MaterialsPage() {
         </div>
       )}
 
-      {/* Transaction Modal */}
+      {/* ── Add Material Modal ───────────────────────────────────────────────── */}
+      <Modal open={addMatModal} onClose={() => setAddMatModal(false)} title="Add Material">
+        <form onSubmit={handleAddMatSubmit} className="space-y-4">
+          {addMatErr && (
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              {addMatErr}
+            </div>
+          )}
+          <div>
+            <label className="form-label">Material Name *</label>
+            <input
+              required
+              value={addMatForm.name}
+              onChange={(e) => setAddMatForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Ordinary Portland Cement"
+              className="form-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Category</label>
+              <select
+                value={addMatForm.category ?? ""}
+                onChange={(e) => setAddMatForm((f) => ({ ...f, category: e.target.value || undefined }))}
+                className="form-input"
+              >
+                <option value="">Select category…</option>
+                {MATERIAL_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Unit *</label>
+              <select
+                required
+                value={addMatForm.unit}
+                onChange={(e) => setAddMatForm((f) => ({ ...f, unit: e.target.value }))}
+                className="form-input"
+              >
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Estimated Qty</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={addMatForm.estimated_quantity || ""}
+                onChange={(e) => setAddMatForm((f) => ({ ...f, estimated_quantity: Number(e.target.value) }))}
+                placeholder="0"
+                className="form-input"
+              />
+            </div>
+            <div>
+              <label className="form-label">Reorder Level</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={addMatForm.reorder_level || ""}
+                onChange={(e) => setAddMatForm((f) => ({ ...f, reorder_level: Number(e.target.value) }))}
+                placeholder="0"
+                className="form-input"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Alert when stock falls below this</p>
+            </div>
+          </div>
+          <div>
+            <label className="form-label">{unitCostLabel(addMatForm.unit ?? "units")}</label>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={addMatForm.unit_cost_estimate || ""}
+              onChange={(e) => setAddMatForm((f) => ({ ...f, unit_cost_estimate: Number(e.target.value) }))}
+              placeholder="0"
+              className="form-input"
+            />
+          </div>
+          <p className="text-xs text-gray-400">
+            After adding, use <strong>Update Stock</strong> to record deliveries and set the initial stock level.
+          </p>
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button type="button" onClick={() => setAddMatModal(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={createMat.isPending} className="btn-primary">
+              {createMat.isPending && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Add Material
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Update Stock Modal ───────────────────────────────────────────────── */}
       <Modal
         open={txnModal}
         onClose={() => setTxnModal(false)}
@@ -335,7 +536,7 @@ export default function MaterialsPage() {
               {TXN_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t === "delivery"   ? "Stock Received (Delivery)"
-                  : t === "issue"     ? "Stock Used (Issue)"
+                  : t === "issue"     ? "Stock Used on Site (Issue)"
                   : t === "return"    ? "Stock Returned"
                   : t === "wastage"   ? "Damaged / Wasted"
                   : "Stock Correction (Adjustment)"}
@@ -345,18 +546,14 @@ export default function MaterialsPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="form-label">
-                Quantity ({selectedMaterial?.unit}) *
-              </label>
+              <label className="form-label">Quantity ({selectedMaterial?.unit}) *</label>
               <input
                 type="number"
                 required
                 min={0.01}
                 step="any"
                 value={txnForm.quantity || ""}
-                onChange={(e) =>
-                  setTxnForm((f) => ({ ...f, quantity: Number(e.target.value) }))
-                }
+                onChange={(e) => setTxnForm((f) => ({ ...f, quantity: Number(e.target.value) }))}
                 className="form-input"
               />
             </div>
@@ -368,10 +565,7 @@ export default function MaterialsPage() {
                 step="any"
                 value={txnForm.unit_cost ?? ""}
                 onChange={(e) =>
-                  setTxnForm((f) => ({
-                    ...f,
-                    unit_cost: e.target.value ? Number(e.target.value) : undefined,
-                  }))
+                  setTxnForm((f) => ({ ...f, unit_cost: e.target.value ? Number(e.target.value) : undefined }))
                 }
                 className="form-input"
               />
@@ -383,9 +577,7 @@ export default function MaterialsPage() {
               type="date"
               required
               value={txnForm.transaction_date}
-              onChange={(e) =>
-                setTxnForm((f) => ({ ...f, transaction_date: e.target.value }))
-              }
+              onChange={(e) => setTxnForm((f) => ({ ...f, transaction_date: e.target.value }))}
               className="form-input"
             />
           </div>
@@ -394,9 +586,7 @@ export default function MaterialsPage() {
               <label className="form-label">Supplier</label>
               <input
                 value={txnForm.supplier_name ?? ""}
-                onChange={(e) =>
-                  setTxnForm((f) => ({ ...f, supplier_name: e.target.value }))
-                }
+                onChange={(e) => setTxnForm((f) => ({ ...f, supplier_name: e.target.value }))}
                 placeholder="Supplier name"
                 className="form-input"
               />
@@ -405,30 +595,16 @@ export default function MaterialsPage() {
               <label className="form-label">Reference No</label>
               <input
                 value={txnForm.reference_no ?? ""}
-                onChange={(e) =>
-                  setTxnForm((f) => ({ ...f, reference_no: e.target.value }))
-                }
+                onChange={(e) => setTxnForm((f) => ({ ...f, reference_no: e.target.value }))}
                 placeholder="REF-001"
                 className="form-input"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
-            <button
-              type="button"
-              onClick={() => setTxnModal(false)}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={addTxn.isPending}
-              className="btn-primary"
-            >
-              {addTxn.isPending && (
-                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              )}
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button type="button" onClick={() => setTxnModal(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={addTxn.isPending} className="btn-primary">
+              {addTxn.isPending && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               Save
             </button>
           </div>

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.core.deps import DbSession, CurrentUserId
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserOut
+from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, TokenResponse, UserOut
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -15,6 +15,18 @@ def register(req: RegisterRequest, db: DbSession):
 @router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest, db: DbSession):
     return auth_service.login_user(db, req)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(req: RefreshRequest, db: DbSession):
+    """Exchange a valid refresh token for a new access + refresh token pair."""
+    return auth_service.refresh_access_token(db, req.refresh_token)
+
+
+@router.post("/logout", status_code=204)
+def logout(db: DbSession, user_id: CurrentUserId):
+    """Revoke all refresh tokens for the current user."""
+    auth_service.logout_user(db, user_id)
 
 
 @router.get("/me", response_model=UserOut)

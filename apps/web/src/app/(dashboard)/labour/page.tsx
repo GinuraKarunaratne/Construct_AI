@@ -3,12 +3,12 @@
 import { useState, FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActiveProject } from "@/hooks/useActiveProject";
-import { labourApi, AttendanceManual } from "@/services/labour";
+import { labourApi, AttendanceManual, WorkerCreate } from "@/services/labour";
 import { LoadingSpinner, EmptyState } from "@/components/ui/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Check, X, AlertTriangle, Search } from "lucide-react";
+import { Plus, Check, X, AlertTriangle, Search, HardHat } from "lucide-react";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -18,6 +18,19 @@ export default function LabourPage() {
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [workerSearch, setWorkerSearch] = useState("");
+
+  // ── Add Worker modal ──────────────────────────────────────────────────────
+  const [addWorkerModal, setAddWorkerModal] = useState(false);
+  const [addWorkerForm, setAddWorkerForm] = useState<WorkerCreate>({
+    full_name: "",
+    worker_code: "",
+    skill_type: "general",
+    daily_rate: 0,
+    overtime_rate: 0,
+    phone: "",
+  });
+  const [addWorkerErr, setAddWorkerErr] = useState<string | null>(null);
+
   const [attModal, setAttModal] = useState(false);
   const [attForm, setAttForm]   = useState<AttendanceManual>({
     worker_id: 0,
@@ -38,6 +51,23 @@ export default function LabourPage() {
     enabled: !!projectId,
   });
 
+  const createWorker = useMutation({
+    mutationFn: (data: WorkerCreate) => labourApi.createWorker(projectId!, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workers", projectId] });
+      qc.invalidateQueries({ queryKey: ["dashboard", projectId] });
+      setAddWorkerModal(false);
+      setAddWorkerErr(null);
+      setAddWorkerForm({ full_name: "", worker_code: "", skill_type: "general", daily_rate: 0, overtime_rate: 0, phone: "" });
+    },
+    onError: (e: unknown) => {
+      setAddWorkerErr(
+        (e as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail ?? "Failed to add worker"
+      );
+    },
+  });
+
   const markAtt = useMutation({
     mutationFn: (data: AttendanceManual) =>
       labourApi.markAttendance(projectId!, data),
@@ -53,6 +83,21 @@ export default function LabourPage() {
       );
     },
   });
+
+  function openAddWorker() {
+    setAddWorkerErr(null);
+    setAddWorkerForm({ full_name: "", worker_code: "", skill_type: "general", daily_rate: 0, overtime_rate: 0, phone: "" });
+    setAddWorkerModal(true);
+  }
+
+  function handleAddWorkerSubmit(e: FormEvent) {
+    e.preventDefault();
+    setAddWorkerErr(null);
+    createWorker.mutate({
+      ...addWorkerForm,
+      phone: addWorkerForm.phone || undefined,
+    });
+  }
 
   function quickMark(workerId: number, status: "present" | "absent") {
     setAttErr(null);
@@ -87,17 +132,24 @@ export default function LabourPage() {
             {workers?.length ?? 0} workers registered
           </p>
         </div>
-        <button
-          onClick={() => {
-            setAttForm({ worker_id: 0, attendance_date: selectedDate, status: "present" });
-            setAttErr(null);
-            setAttModal(true);
-          }}
-          className="btn-primary"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Mark Attendance
-        </button>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <button
+            onClick={() => {
+              setAttForm({ worker_id: 0, attendance_date: selectedDate, status: "present" });
+              setAttErr(null);
+              setAttModal(true);
+            }}
+            className="btn-secondary"
+            title="Record attendance"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Mark Attendance</span>
+          </button>
+          <button onClick={openAddWorker} className="btn-primary" title="Add a new worker">
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Add Worker</span>
+          </button>
+        </div>
       </div>
 
       {/* Workers table */}
@@ -106,7 +158,7 @@ export default function LabourPage() {
           <h2 className="card-title">Registered Workers</h2>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
               <input
                 type="search"
                 placeholder="Search workers…"
@@ -115,13 +167,23 @@ export default function LabourPage() {
                 className="search-input"
               />
             </div>
-            <span className="text-xs text-stone-400 whitespace-nowrap">
+            <span className="text-xs text-gray-400 whitespace-nowrap">
               {filteredWorkers.length} of {workers?.length ?? 0}
             </span>
           </div>
         </div>
         {(workers ?? []).length === 0 ? (
-          <EmptyState title="No workers registered" description="Add workers to start tracking labour." />
+          <EmptyState
+            icon={<HardHat className="w-5 h-5" />}
+            title="No workers registered"
+            description="Add workers to start tracking attendance and generating payroll."
+            action={
+              <button onClick={openAddWorker} className="btn-primary">
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                Add Worker
+              </button>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -139,20 +201,20 @@ export default function LabourPage() {
                   <tr key={w.id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-xs font-bold text-brand-700 flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-ink-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                           {w.full_name.charAt(0)}
                         </div>
-                        <span className="font-semibold text-stone-800">{w.full_name}</span>
+                        <span className="font-semibold text-gray-800">{w.full_name}</span>
                       </div>
                     </td>
-                    <td className="font-mono text-xs text-stone-500">{w.worker_code}</td>
+                    <td className="font-mono text-xs text-gray-500">{w.worker_code}</td>
                     <td>
                       <Badge label={w.skill_type} variant="default" />
                     </td>
-                    <td className="td-right font-semibold text-stone-800 tabular-nums">
+                    <td className="td-right font-semibold text-gray-800 tabular-nums">
                       {formatCurrency(w.daily_rate)}
                     </td>
-                    <td className="text-stone-500">{w.phone ?? "—"}</td>
+                    <td className="text-gray-500">{w.phone ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -167,12 +229,12 @@ export default function LabourPage() {
           <div>
             <h2 className="card-title">
               Attendance
-              <span className="ml-2 font-normal text-stone-400 text-xs">
+              <span className="ml-2 font-normal text-gray-400 text-xs">
                 {selectedDate}
               </span>
             </h2>
             {!attLoading && (
-              <p className="text-xs text-stone-400 mt-0.5">
+              <p className="text-xs text-gray-400 mt-0.5">
                 {presentCount} present / {workers?.length ?? 0} total
               </p>
             )}
@@ -187,7 +249,7 @@ export default function LabourPage() {
 
         {attLoading ? (
           <div className="py-8 flex justify-center">
-            <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-ink-900 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -207,31 +269,31 @@ export default function LabourPage() {
                   const att = attMap.get(w.id);
                   return (
                     <tr key={w.id}>
-                      <td className="font-semibold text-stone-800">{w.full_name}</td>
-                      <td className="text-stone-500 text-xs">{w.skill_type}</td>
+                      <td className="font-semibold text-gray-800">{w.full_name}</td>
+                      <td className="text-gray-500 text-xs">{w.skill_type}</td>
                       <td>
                         {att ? (
                           <Badge label={att.status} variant={att.status} />
                         ) : (
-                          <span className="text-xs text-stone-400 italic">Not marked</span>
+                          <span className="text-xs text-gray-400 italic">Not marked</span>
                         )}
                       </td>
-                      <td className="text-stone-500 tabular-nums text-xs">
+                      <td className="text-gray-500 tabular-nums text-xs">
                         {att?.check_in_time?.slice(0, 5) ?? "—"}
                       </td>
-                      <td className="td-right text-stone-500 text-xs tabular-nums">
+                      <td className="td-right text-gray-500 text-xs tabular-nums">
                         {att ? `${att.overtime_hours}h` : "—"}
                       </td>
                       <td className="td-right">
                         {att ? (
-                          <span className="text-xs text-stone-400 italic">Recorded</span>
+                          <span className="text-xs text-gray-400 italic">Recorded</span>
                         ) : (
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={() => quickMark(w.id, "present")}
                               disabled={markAtt.isPending}
                               aria-label={`Mark ${w.full_name} present`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors disabled:opacity-50"
                             >
                               <Check className="w-3 h-3" strokeWidth={2.5} />
                               Present
@@ -256,6 +318,102 @@ export default function LabourPage() {
           </div>
         )}
       </div>
+
+      {/* ── Add Worker Modal ──────────────────────────────────────────────────── */}
+      <Modal open={addWorkerModal} onClose={() => setAddWorkerModal(false)} title="Add Worker">
+        <form onSubmit={handleAddWorkerSubmit} className="space-y-4">
+          {addWorkerErr && (
+            <div role="alert" className="flex items-start gap-2 px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" strokeWidth={2} />
+              {addWorkerErr}
+            </div>
+          )}
+          <div>
+            <label className="form-label">Full Name *</label>
+            <input
+              required
+              value={addWorkerForm.full_name}
+              onChange={(e) => setAddWorkerForm((f) => ({ ...f, full_name: e.target.value }))}
+              placeholder="e.g. Kamal Perera"
+              className="form-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Worker Code *</label>
+              <input
+                required
+                value={addWorkerForm.worker_code}
+                onChange={(e) => setAddWorkerForm((f) => ({ ...f, worker_code: e.target.value.toUpperCase() }))}
+                placeholder="e.g. WRK-001"
+                className="form-input font-mono"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Used for QR badge scanning</p>
+            </div>
+            <div>
+              <label className="form-label">Skill Type *</label>
+              <select
+                value={addWorkerForm.skill_type}
+                onChange={(e) => setAddWorkerForm((f) => ({ ...f, skill_type: e.target.value }))}
+                className="form-input"
+              >
+                <option value="general">General Labour</option>
+                <option value="mason">Mason</option>
+                <option value="carpenter">Carpenter</option>
+                <option value="electrician">Electrician</option>
+                <option value="plumber">Plumber</option>
+                <option value="welder">Welder</option>
+                <option value="painter">Painter</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="driver">Driver / Operator</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Daily Rate (LKR)</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={addWorkerForm.daily_rate || ""}
+                onChange={(e) => setAddWorkerForm((f) => ({ ...f, daily_rate: Number(e.target.value) }))}
+                placeholder="2500"
+                className="form-input"
+              />
+            </div>
+            <div>
+              <label className="form-label">Overtime Rate (LKR/hr)</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={addWorkerForm.overtime_rate || ""}
+                onChange={(e) => setAddWorkerForm((f) => ({ ...f, overtime_rate: Number(e.target.value) }))}
+                placeholder="400"
+                className="form-input"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="form-label">Phone</label>
+            <input
+              type="tel"
+              value={addWorkerForm.phone ?? ""}
+              onChange={(e) => setAddWorkerForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder="+94 77 123 4567"
+              className="form-input"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button type="button" onClick={() => setAddWorkerModal(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={createWorker.isPending} className="btn-primary">
+              {createWorker.isPending && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Add Worker
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Manual Attendance Modal */}
       <Modal
@@ -337,7 +495,7 @@ export default function LabourPage() {
               className="form-input"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-stone-100">
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setAttModal(false)}

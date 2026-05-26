@@ -8,26 +8,33 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  description?: string;
   children: ReactNode;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 const SIZE_MAP = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
+  sm: "max-w-md",
+  md: "max-w-lg",
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
 };
 
-export function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
+export function Modal({ open, onClose, title, description, children, size = "md" }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
 
-  // Close on Escape, trap focus
+  const didAutoFocus = useRef(false);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      didAutoFocus.current = false;
+      return;
+    }
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      // Basic focus trap
+      if (e.key === "Escape") onCloseRef.current();
       if (e.key === "Tab" && panelRef.current) {
         const focusable = panelRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -48,14 +55,18 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
       }
     }
     document.addEventListener("keydown", onKey);
-    // Auto-focus first interactive element
-    setTimeout(() => {
-      panelRef.current
-        ?.querySelector<HTMLElement>("input, select, button:not([data-close])")
-        ?.focus();
-    }, 50);
+
+    if (!didAutoFocus.current) {
+      didAutoFocus.current = true;
+      setTimeout(() => {
+        panelRef.current
+          ?.querySelector<HTMLElement>("input, select, button:not([data-close])")
+          ?.focus();
+      }, 50);
+    }
+
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -68,7 +79,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-stone-950/50 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -76,29 +87,35 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
       <div
         ref={panelRef}
         className={cn(
-          "relative z-10 w-full bg-white rounded-2xl shadow-2xl ring-1 ring-stone-200/60",
+          "relative z-10 w-full bg-white rounded-xl border border-surface-border",
+          "flex flex-col max-h-[calc(100vh-2rem)]",
           SIZE_MAP[size]
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
-          <h2
-            id="modal-title"
-            className="text-base font-semibold text-stone-900"
-          >
-            {title}
-          </h2>
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-surface-divider flex-shrink-0">
+          <div className="min-w-0">
+            <h2
+              id="modal-title"
+              className="text-lg font-semibold text-ink-900 tracking-tight"
+            >
+              {title}
+            </h2>
+            {description && (
+              <p className="text-sm text-ink-500 mt-1">{description}</p>
+            )}
+          </div>
           <button
             data-close
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+            className="p-1.5 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-surface-subtle transition-colors flex-shrink-0"
           >
-            <X className="w-4.5 h-4.5" strokeWidth={2} />
+            <X className="w-5 h-5" strokeWidth={2} />
           </button>
         </div>
         {/* Body */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

@@ -70,4 +70,5 @@ def get_cost_summary(db: Session, project_id: int) -> dict:
         "remaining_budget": remaining,
         "budget_used_pct": round(pct, 1),
         "overrun_risk": overrun,
+        "budget_items_vs_actual": [],   # enriched by costs route
     }

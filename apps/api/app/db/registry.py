@@ -8,3 +8,4 @@ from app.models.material import MaterialItem, MaterialTransaction  # noqa: F401
 from app.models.labour import Worker, Attendance, PayrollRun, PayrollLine  # noqa: F401
 from app.models.cost import BudgetItem, Expense, CostPrediction  # noqa: F401
 from app.models.alert import Alert, WeatherSnapshot  # noqa: F401
+from app.models.refresh_token import RefreshToken  # noqa: F401

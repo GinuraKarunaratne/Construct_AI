@@ -10,6 +10,15 @@ bcrypt>=4.2.0
 python-multipart>=0.0.12
 httpx>=0.27.0
 
+# ── Machine Learning (core ML stack) ─────────────────────────────────────────
+scikit-learn>=1.5.0      # GradientBoosting, RandomForest, LinearRegression, metrics
+pandas>=2.2.0            # Dataset handling, feature engineering
+numpy>=1.26.0            # Numerical operations
+joblib>=1.4.0            # Model serialisation / persistence
+
+# ── External APIs ─────────────────────────────────────────────────────────────
+requests>=2.32.0         # OpenWeatherMap REST calls
+
 # Dev / testing
 pytest>=8.3.0
 pytest-asyncio>=0.24.0

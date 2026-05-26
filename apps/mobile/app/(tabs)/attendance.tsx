@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { COLORS, SPACING } from "@/lib/constants";
 import { apiClient } from "@/services/api";
+import { useProject } from "@/context/ProjectContext";
 
 interface Worker { id: number; full_name: string; skill_type: string; worker_code: string; }
 interface AttRecord { id: number; worker_id: number; status: string; attendance_date: string; }
@@ -24,12 +25,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> 
 
 export default function AttendanceScreen() {
   const qc = useQueryClient();
-
-  const { data: projects } = useQuery({
-    queryKey: ["mobile-projects"],
-    queryFn: () => apiClient.get<Array<{ id: number }>>("/projects").then(r => r.data),
-  });
-  const projectId = projects?.[0]?.id;
+  const { selectedProjectId: projectId } = useProject();
 
   const { data: workers, isLoading: wLoading } = useQuery({
     queryKey: ["mobile-workers", projectId],

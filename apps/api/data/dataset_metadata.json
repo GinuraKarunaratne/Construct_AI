@@ -1,0 +1,77 @@
+{
+  "n_samples": 4000,
+  "n_real_grounded": 2000,
+  "n_synthetic": 2000,
+  "real_pct": 50.0,
+  "features": [
+    "project_type",
+    "budget",
+    "planned_duration_days",
+    "worker_count",
+    "task_count",
+    "location_type",
+    "has_subcontractors",
+    "snapshot_progress_pct",
+    "actual_cost_at_snapshot",
+    "cpi",
+    "spi",
+    "delayed_task_count",
+    "delayed_task_ratio",
+    "labour_ratio",
+    "material_ratio",
+    "months_elapsed",
+    "budget_used_pct",
+    "schedule_efficiency"
+  ],
+  "target": "overrun_pct",
+  "random_seed": 42,
+  "data_sources": [
+    {
+      "source": "USASpending.gov (features) + Flyvbjerg et al. (2002) (outcomes)",
+      "description": "Real US federal construction contract features (budget, duration, type, location) from 500 USASpending.gov records. 4 EVM snapshots per project generated using Christensen (1992) CPI-stability methodology. Overrun targets sampled from literature distributions (Flyvbjerg 2002): residential mean=9%, commercial mean=27%, infrastructure mean=45%. NOTE: Federal contract 'base_and_all_options' = ceiling, not original estimate \u2014 literature distributions better represent true project overruns.",
+      "citations": [
+        "USAspending.gov (2024). Federal Award Spending Data. U.S. Department of the Treasury. Public Domain.",
+        "Flyvbjerg B. et al. (2002). Underestimating Costs in Public Works Projects. JAPA. DOI: 10.1080/01944360208976273",
+        "Christensen D. (1992). Determining an Accurate Estimate at Completion. NCMJ, 25(1), 17-25."
+      ],
+      "n_rows": 2000
+    },
+    {
+      "source": "Calibrated synthetic",
+      "description": "2000 synthetic rows following statistical distributions from Flyvbjerg et al. (2002), Cantarelli et al. (2010), Love et al. (2015), and Odeck (2004). Used for edge-case coverage.",
+      "n_rows": 2000
+    }
+  ],
+  "methodology_references": [
+    {
+      "citation": "Christensen D. (1992). Determining an Accurate Estimate at Completion.",
+      "journal": "National Contract Management Journal",
+      "key_finding": "CPI at 20% completion predicts final CPI within \u00b110%"
+    },
+    {
+      "citation": "Christensen D., Templin C. (2002). EAC Evaluation Methods.",
+      "journal": "Acquisition Review Quarterly",
+      "key_finding": "EAC = BAC/CPI is the most reliable completion forecast"
+    },
+    {
+      "citation": "Flyvbjerg B., Holm M., Buhl S. (2002). Underestimating Costs in Public Works Projects.",
+      "journal": "Journal of the American Planning Association",
+      "doi": "10.1080/01944360208976273"
+    },
+    {
+      "citation": "Cantarelli C. et al. (2010). Cost Overruns in Large-Scale Transport Infrastructure Projects.",
+      "journal": "European Journal of Transport and Infrastructure Research"
+    },
+    {
+      "citation": "Love P. et al. (2015). Estimating Construction Contingency.",
+      "journal": "Journal of Infrastructure Systems (ASCE)",
+      "doi": "10.1061/(ASCE)IS.1943-555X.0000221"
+    },
+    {
+      "citation": "Odeck J. (2004). Cost Overruns in Road Construction.",
+      "journal": "Transport Policy",
+      "doi": "10.1016/S0967-070X(03)00017-9"
+    }
+  ],
+  "generation_note": "Primary training data (50%) uses REAL US federal construction contract characteristics (budget sizes, durations, project types, locations) from USASpending.gov. For each real project, 4 mid-project EVM snapshots are generated using Christensen's CPI-stability law (1992). Overrun targets are sampled from Flyvbjerg et al. (2002) distributions by project type, since federal contract ceilings != original point estimates. The remaining data covers edge cases via calibrated synthetic generation."
+}

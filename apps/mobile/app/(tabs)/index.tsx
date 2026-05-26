@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { COLORS, SPACING } from "@/lib/constants";
 import { apiClient } from "@/services/api";
+import { useProject } from "@/context/ProjectContext";
 
 interface ProjectDashboard {
   project: { name: string; location_name?: string | null };
@@ -35,19 +36,16 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string; 
 }
 
 const QUICK_ACTIONS = [
-  { label: "View Schedule", route: "/(tabs)/tasks" },
-  { label: "Scan Material", route: "/(tabs)/scan"  },
+  { label: "View Schedule", route: "/(tabs)/tasks"      },
+  { label: "Log Expense",   route: "/(tabs)/costs"      },
+  { label: "Materials",     route: "/(tabs)/materials"  },
+  { label: "Scan Material", route: "/(tabs)/scan"       },
   { label: "Attendance",    route: "/(tabs)/attendance" },
-  { label: "Alerts",        route: "/(tabs)/alerts" },
+  { label: "Alerts",        route: "/(tabs)/alerts"     },
 ];
 
 export default function HomeScreen() {
-  // Fetch first project
-  const { data: projects } = useQuery({
-    queryKey: ["mobile-projects"],
-    queryFn: () => apiClient.get<Array<{ id: number; name: string }>>("/projects").then(r => r.data),
-  });
-  const projectId = projects?.[0]?.id;
+  const { selectedProjectId: projectId, selectedProject } = useProject();
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ["mobile-dashboard", projectId],
@@ -69,9 +67,9 @@ export default function HomeScreen() {
       {/* Heading */}
       <View style={styles.heading}>
         <Text style={styles.projectName}>
-          {dash?.project.name ?? projects?.[0]?.name ?? "ConstructAI"}
+          {dash?.project.name ?? selectedProject?.name ?? "ConstructAI"}
         </Text>
-        <Text style={styles.projectSub}>{dash?.project.location_name ?? ""}</Text>
+        <Text style={styles.projectSub}>{dash?.project.location_name ?? selectedProject?.location_name ?? ""}</Text>
       </View>
 
       {/* KPI grid */}

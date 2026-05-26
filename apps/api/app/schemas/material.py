@@ -1,5 +1,7 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+_VALID_TX_TYPES = frozenset(("delivery", "issue", "return", "wastage", "adjustment", "in", "out"))
 
 
 class MaterialCreate(BaseModel):
@@ -38,9 +40,23 @@ class MaterialStockOut(MaterialOut):
 
 
 class TransactionCreate(BaseModel):
-    transaction_type: str  # delivery|issue|return|wastage|adjustment
+    transaction_type: str  # delivery|issue|return|wastage|adjustment|in|out
     quantity: float
     unit_cost: float | None = None
+
+    @field_validator("transaction_type")
+    @classmethod
+    def valid_tx_type(cls, v: str) -> str:
+        if v not in _VALID_TX_TYPES:
+            raise ValueError(f"transaction_type must be one of: {', '.join(sorted(_VALID_TX_TYPES))}")
+        return v
+
+    @field_validator("quantity")
+    @classmethod
+    def positive_quantity(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("quantity must be positive")
+        return v
     supplier_name: str | None = None
     reference_no: str | None = None
     qr_code: str | None = None

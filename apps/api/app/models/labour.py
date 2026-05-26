@@ -17,6 +17,7 @@ class Worker(Base, TimestampMixin):
     overtime_rate: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    qr_data: Mapped[str | None] = mapped_column(String(200), nullable=True)  # QR payload (worker_code)
 
     project: Mapped["Project"] = relationship(back_populates="workers")  # type: ignore[name-defined]
     attendance_records: Mapped[list["Attendance"]] = relationship(back_populates="worker", cascade="all, delete-orphan")
@@ -67,6 +68,12 @@ class PayrollLine(Base):
     advances: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     deductions: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     net_pay: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    # Sri Lanka statutory contributions (EPF / ETF)
+    # Reference: Employees' Provident Fund Act No. 15 of 1958
+    #            Employees' Trust Fund Act No. 46 of 1980
+    epf_employee: Mapped[float] = mapped_column(Numeric(12, 2), default=0)   # 8% of gross — deducted from worker
+    epf_employer: Mapped[float] = mapped_column(Numeric(12, 2), default=0)   # 12% of gross — employer cost
+    etf_employer: Mapped[float] = mapped_column(Numeric(12, 2), default=0)   # 3% of gross — employer cost
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     payroll_run: Mapped["PayrollRun"] = relationship(back_populates="lines")

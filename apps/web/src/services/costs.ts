@@ -1,5 +1,12 @@
 import { apiClient } from "./api";
 
+export interface BudgetVsActualItem {
+  category: string;
+  budgeted: number;
+  actual: number;
+  variance: number;  // actual - budgeted (positive = over budget)
+}
+
 export interface CostSummary {
   total_budget: number;
   actual_cost_to_date: number;
@@ -8,6 +15,8 @@ export interface CostSummary {
   labour_cost: number;
   other_cost: number;
   remaining_budget: number;
+  overrun_risk: boolean;
+  budget_items_vs_actual?: BudgetVsActualItem[];
 }
 
 export interface BudgetItemOut {
@@ -68,8 +77,14 @@ export const costsApi = {
     apiClient
       .get<PredictionOut | null>(`/projects/${projectId}/cost-predictions/latest`)
       .then((r) => r.data),
+  predictionHistory: (projectId: number, limit = 20) =>
+    apiClient
+      .get<PredictionOut[]>(`/projects/${projectId}/cost-predictions/history`, { params: { limit } })
+      .then((r) => r.data),
   runPrediction: (projectId: number) =>
     apiClient
       .post<PredictionOut>(`/projects/${projectId}/cost-predictions/run`)
       .then((r) => r.data),
+  exportExpensesCsv: (projectId: number) =>
+    `/api/v1/projects/${projectId}/reports/expenses.csv`,
 };

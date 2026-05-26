@@ -54,10 +54,23 @@ export interface PayrollLineOut {
   net_pay: number;
 }
 
+export interface WorkerCreate {
+  full_name: string;
+  worker_code: string;
+  skill_type?: string;
+  daily_rate?: number;
+  overtime_rate?: number;
+  phone?: string | null;
+}
+
 export const labourApi = {
   workers: (projectId: number) =>
     apiClient
       .get<WorkerOut[]>(`/projects/${projectId}/workers`)
+      .then((r) => r.data),
+  createWorker: (projectId: number, data: WorkerCreate) =>
+    apiClient
+      .post<WorkerOut>(`/projects/${projectId}/workers`, data)
       .then((r) => r.data),
   attendance: (projectId: number, date?: string) => {
     const params = date ? `?attendance_date=${date}` : "";

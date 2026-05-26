@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8081"]
+    # Allow localhost (web), Expo DevServer, and any LAN IP the phone dials from.
+    # In production this should be locked down to specific origins.
+    CORS_ORIGINS: List[str] = ["*"]
 
     WEATHER_API_KEY: str = ""
 

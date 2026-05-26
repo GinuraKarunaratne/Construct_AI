@@ -1,14 +1,24 @@
 import { apiClient } from "./api";
 
+export type ProjectType = "residential" | "commercial" | "infrastructure";
+export type LocationType = "urban" | "suburban" | "rural";
+
 export interface ProjectOut {
   id: number;
   name: string;
   description?: string | null;
   location_name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   planned_start_date?: string | null;
   planned_end_date?: string | null;
+  actual_start_date?: string | null;
+  actual_end_date?: string | null;
   total_budget: number;
   status: string;
+  project_type?: ProjectType | null;
+  location_type?: LocationType | null;
+  has_subcontractors?: boolean;
   created_at?: string | null;
 }
 
@@ -34,9 +44,14 @@ export interface ProjectCreate {
   name: string;
   description?: string;
   location_name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   planned_start_date?: string;
   planned_end_date?: string;
   total_budget: number;
+  project_type?: ProjectType;
+  location_type?: LocationType;
+  has_subcontractors?: boolean;
 }
 
 export const projectsApi = {

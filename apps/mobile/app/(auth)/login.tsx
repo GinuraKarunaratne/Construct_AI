@@ -8,8 +8,11 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { NetworkError, API_BASE } from "@/services/api";
+
+type ServerStatus = "checking" | "online" | "offline";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -17,6 +20,24 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
+
+  // Ping the server root to verify phone-to-server connectivity
+  useEffect(() => {
+    const host = API_BASE.replace("/api/v1", "");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6_000);
+
+    fetch(host, { signal: controller.signal })
+      .then(() => setServerStatus("online"))
+      .catch(() => setServerStatus("offline"))
+      .finally(() => clearTimeout(timer));
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, []);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -28,14 +49,34 @@ export default function LoginScreen() {
     try {
       await login(email, password);
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail ?? "Invalid email or password";
-      setError(msg);
+      if (e instanceof NetworkError) {
+        setError(
+          `Cannot reach the server.\n\n` +
+          `Server: ${API_BASE}\n\n` +
+          `Check:\n` +
+          `• PC and phone are on the same WiFi\n` +
+          `• API server is running (npm run api)\n` +
+          `• Windows Firewall allows port 8000 inbound`
+        );
+        setServerStatus("offline");
+      } else {
+        const detail = (e as { response?: { data?: { detail?: string } } })
+          ?.response?.data?.detail;
+        setError(detail ?? "Invalid email or password");
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  const statusDot =
+    serverStatus === "checking" ? "⏳" :
+    serverStatus === "online"   ? "🟢" :
+                                  "🔴";
+  const statusLabel =
+    serverStatus === "checking" ? "Checking server…" :
+    serverStatus === "online"   ? "Server reachable" :
+                                  "Server unreachable";
 
   return (
     <KeyboardAvoidingView
@@ -54,11 +95,23 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign In</Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Sign In</Text>
+            <Text style={styles.statusBadge}>{statusDot} {statusLabel}</Text>
+          </View>
 
           {error && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {serverStatus === "offline" && !error && (
+            <View style={styles.warnBox}>
+              <Text style={styles.warnText}>
+                ⚠️ Cannot reach {API_BASE.replace("/api/v1", "")}
+                {"\n"}Make sure the API is running and your phone is on the same WiFi as your PC.
+              </Text>
             </View>
           )}
 
@@ -137,7 +190,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
-  cardTitle:      { fontSize: 17, fontWeight: "600", color: "#0f172a", marginBottom: 16 },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  cardTitle:    { fontSize: 17, fontWeight: "600", color: "#0f172a" },
+  statusBadge:  { fontSize: 11, color: "#64748b" },
   errorBox: {
     backgroundColor: "#fee2e2",
     borderRadius: 8,
@@ -145,9 +205,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  errorText:      { color: "#991b1b", fontSize: 13 },
-  field:          { marginBottom: 16 },
-  label:          { fontSize: 13, fontWeight: "500", color: "#475569", marginBottom: 6 },
+  errorText:    { color: "#991b1b", fontSize: 13, lineHeight: 18 },
+  warnBox: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  warnText:     { color: "#92400e", fontSize: 12, lineHeight: 17 },
+  field:        { marginBottom: 16 },
+  label:        { fontSize: 13, fontWeight: "500", color: "#475569", marginBottom: 6 },
   input: {
     borderWidth: 1,
     borderColor: "#cbd5e1",

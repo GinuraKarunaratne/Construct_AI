@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import String, Date, Numeric, ForeignKey, Text
+from sqlalchemy import String, Date, Numeric, ForeignKey, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -21,6 +21,9 @@ class Project(Base, TimestampMixin):
     actual_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     total_budget: Mapped[float] = mapped_column(Numeric(15, 2), default=0)
     status: Mapped[str] = mapped_column(String(50), default="active")
+    project_type: Mapped[str] = mapped_column(String(50), default="residential")   # residential|commercial|infrastructure
+    location_type: Mapped[str] = mapped_column(String(50), default="urban")        # urban|suburban|rural
+    has_subcontractors: Mapped[bool] = mapped_column(Boolean, default=False)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     company: Mapped["Company | None"] = relationship(back_populates="projects")  # type: ignore[name-defined]

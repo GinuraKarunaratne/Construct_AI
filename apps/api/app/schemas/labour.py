@@ -31,6 +31,7 @@ class WorkerOut(BaseModel):
     overtime_rate: float
     phone: str | None = None
     is_active: bool
+    qr_data: str | None = None
 
 
 class AttendanceScan(BaseModel):
@@ -71,12 +72,25 @@ class PayrollGenerateRequest(BaseModel):
 
 
 class PayrollLineOut(BaseModel):
+    """
+    Single worker payroll breakdown.
+
+    Sri Lanka statutory contributions (EPF/ETF):
+      epf_employee  — 8% of gross deducted from the worker's pay
+      epf_employer  — 12% of gross, additional employer cost (not subtracted from net_pay)
+      etf_employer  — 3% of gross, additional employer cost (not subtracted from net_pay)
+
+    net_pay = gross_pay - epf_employee - deductions - advances
+    """
     model_config = {"from_attributes": True}
     id: int
     worker_id: int
     days_worked: float
     overtime_hours: float
     gross_pay: float
+    epf_employee: float = 0.0    # employee EPF contribution (8%)
+    epf_employer: float = 0.0    # employer EPF contribution (12%)
+    etf_employer: float = 0.0    # employer ETF contribution (3%)
     advances: float
     deductions: float
     net_pay: float

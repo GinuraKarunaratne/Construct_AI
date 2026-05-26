@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import DbSession, CurrentUserId
+from app.core.rbac import assert_project_access
 from app.models.task import Task, TaskDependency
 from app.models.project import Project
 from app.schemas.task import TaskCreate, TaskUpdate, TaskProgressUpdate, TaskOut, DependencyCreate
@@ -21,8 +22,19 @@ def _get_task(db: Session, task_id: int) -> Task:
 # ── Project-scoped task list & create ──────────────────────────────────────
 
 @router.get("/projects/{project_id}/tasks", response_model=list[TaskOut])
-def list_tasks(project_id: int, db: DbSession, user_id: CurrentUserId):
-    tasks = db.execute(select(Task).where(Task.project_id == project_id)).scalars().all()
+def list_tasks(
+    project_id: int,
+    db: DbSession,
+    user_id: CurrentUserId,
+    status: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=1000),
+):
+    assert_project_access(db, user_id, project_id)
+    q = select(Task).where(Task.project_id == project_id)
+    if status:
+        q = q.where(Task.status == status)
+    tasks = db.execute(q.offset(skip).limit(limit)).scalars().all()
     return [TaskOut.model_validate(t) for t in tasks]
 
 
@@ -30,6 +42,7 @@ def list_tasks(project_id: int, db: DbSession, user_id: CurrentUserId):
 def create_task(project_id: int, req: TaskCreate, db: DbSession, user_id: CurrentUserId):
     if not db.get(Project, project_id):
         raise HTTPException(404, "Project not found")
+    assert_project_access(db, user_id, project_id, minimum_role="site_supervisor")
     task = Task(project_id=project_id, **req.model_dump())
     db.add(task)
     db.commit()
@@ -41,12 +54,15 @@ def create_task(project_id: int, req: TaskCreate, db: DbSession, user_id: Curren
 
 @router.get("/tasks/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, db: DbSession, user_id: CurrentUserId):
-    return TaskOut.model_validate(_get_task(db, task_id))
+    task = _get_task(db, task_id)
+    assert_project_access(db, user_id, task.project_id)
+    return TaskOut.model_validate(task)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
 def update_task(task_id: int, req: TaskUpdate, db: DbSession, user_id: CurrentUserId):
     task = _get_task(db, task_id)
+    assert_project_access(db, user_id, task.project_id, minimum_role="site_supervisor")
     old_end = task.planned_end_date
 
     for field, val in req.model_dump(exclude_none=True).items():
@@ -63,6 +79,7 @@ def update_task(task_id: int, req: TaskUpdate, db: DbSession, user_id: CurrentUs
 @router.post("/tasks/{task_id}/progress", response_model=TaskOut)
 def update_progress(task_id: int, req: TaskProgressUpdate, db: DbSession, user_id: CurrentUserId):
     task = _get_task(db, task_id)
+    assert_project_access(db, user_id, task.project_id, minimum_role="site_supervisor")
     task.progress_percentage = req.progress_percentage
     if req.status:
         task.status = req.status
@@ -84,6 +101,7 @@ def update_progress(task_id: int, req: TaskProgressUpdate, db: DbSession, user_i
 @router.post("/tasks/{task_id}/dependencies", status_code=201)
 def add_dependency(task_id: int, req: DependencyCreate, db: DbSession, user_id: CurrentUserId):
     task = _get_task(db, task_id)
+    assert_project_access(db, user_id, task.project_id, minimum_role="site_supervisor")
     if task_id == req.predecessor_task_id:
         raise HTTPException(400, "A task cannot depend on itself")
     dep = TaskDependency(
@@ -102,4 +120,5 @@ def add_dependency(task_id: int, req: DependencyCreate, db: DbSession, user_id: 
 
 @router.get("/projects/{project_id}/schedule/gantt")
 def gantt_data(project_id: int, db: DbSession, user_id: CurrentUserId):
+    assert_project_access(db, user_id, project_id)
     return {"tasks": build_gantt(db, project_id)}

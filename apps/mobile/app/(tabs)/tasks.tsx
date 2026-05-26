@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { COLORS, SPACING } from "@/lib/constants";
 import { apiClient } from "@/services/api";
+import { useProject } from "@/context/ProjectContext";
 
 interface Task {
   id: number;
@@ -28,11 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function TasksScreen() {
-  const { data: projects } = useQuery({
-    queryKey: ["mobile-projects"],
-    queryFn: () => apiClient.get<Array<{ id: number }>>("/projects").then(r => r.data),
-  });
-  const projectId = projects?.[0]?.id;
+  const { selectedProjectId: projectId } = useProject();
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ["mobile-tasks", projectId],

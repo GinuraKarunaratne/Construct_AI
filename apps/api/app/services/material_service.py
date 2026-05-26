@@ -6,7 +6,11 @@ from app.models.alert import Alert
 
 
 def get_stock(db: Session, material_item_id: int) -> float:
-    """Calculates current stock from all transactions."""
+    """Calculates current stock from all transactions.
+
+    IN types  (increase stock): delivery, return, adjustment, in
+    OUT types (decrease stock): issue, wastage, out
+    """
     rows = db.execute(
         select(
             MaterialTransaction.transaction_type,
@@ -16,11 +20,14 @@ def get_stock(db: Session, material_item_id: int) -> float:
         .group_by(MaterialTransaction.transaction_type)
     ).all()
 
+    _IN_TYPES  = frozenset(("delivery", "return", "adjustment", "in"))
+    _OUT_TYPES = frozenset(("issue", "wastage", "out"))
+
     stock = 0.0
     for row in rows:
-        if row.transaction_type in ("delivery", "return", "adjustment"):
+        if row.transaction_type in _IN_TYPES:
             stock += float(row.total)
-        elif row.transaction_type in ("issue", "wastage"):
+        elif row.transaction_type in _OUT_TYPES:
             stock -= float(row.total)
     return stock
 

@@ -12,18 +12,18 @@ import Link from "next/link";
 
 const SEVERITY_CONFIG = {
   critical: {
-    bg:        "bg-red-50 border-red-200",
-    iconColor: "text-red-500",
+    bg:        "bg-white border-danger-100",
+    iconColor: "text-danger-500",
     Icon:      AlertTriangle,
   },
   warning: {
-    bg:        "bg-amber-50 border-amber-200",
-    iconColor: "text-amber-500",
+    bg:        "bg-white border-warning-100",
+    iconColor: "text-warning-500",
     Icon:      AlertTriangle,
   },
   info: {
-    bg:        "bg-sky-50 border-sky-200",
-    iconColor: "text-sky-500",
+    bg:        "bg-white border-surface-border",
+    iconColor: "text-info-500",
     Icon:      Info,
   },
 };
@@ -84,39 +84,33 @@ export default function AlertsPage() {
             className="btn-secondary"
           >
             {markAllRead.isPending && (
-              <span className="w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
+              <span className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-lg animate-spin" />
             )}
             Mark all as read
           </button>
         )}
       </div>
 
-      {/* Summary chips */}
+      {/* Summary filter chips */}
       {(criticalCount > 0 || warningCount > 0 || infoCount > 0) && (
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {criticalCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-              <span className="text-sm text-red-700 font-semibold">
-                {criticalCount} critical
-              </span>
-            </div>
+            <span className="filter-chip">
+              <span className="status-dot bg-danger-500" />
+              {criticalCount} critical
+            </span>
           )}
           {warningCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-              <span className="text-sm text-amber-700 font-semibold">
-                {warningCount} warning{warningCount !== 1 ? "s" : ""}
-              </span>
-            </div>
+            <span className="filter-chip">
+              <span className="status-dot bg-warning-500" />
+              {warningCount} warning{warningCount !== 1 ? "s" : ""}
+            </span>
           )}
           {infoCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-sky-400 flex-shrink-0" />
-              <span className="text-sm text-sky-700 font-semibold">
-                {infoCount} info
-              </span>
-            </div>
+            <span className="filter-chip">
+              <span className="status-dot bg-info-500" />
+              {infoCount} info
+            </span>
           )}
         </div>
       )}
@@ -138,7 +132,7 @@ export default function AlertsPage() {
               <div
                 key={alert.id}
                 className={cn(
-                  "flex items-start gap-4 p-4 rounded-2xl border transition-opacity",
+                  "flex items-start gap-4 p-4 rounded-xl border transition-opacity",
                   cfg.bg,
                   alert.is_read ? "opacity-40" : ""
                 )}
@@ -149,18 +143,18 @@ export default function AlertsPage() {
                 />
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <p className="font-semibold text-stone-900 text-sm">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <p className="font-semibold text-ink-900 text-sm">
                       {alert.title}
                     </p>
                     <Badge label={alert.severity} variant={alert.severity} />
                     {!alert.is_read && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
+                      <span className="status-dot bg-ink-900 flex-shrink-0" />
                     )}
                   </div>
-                  <p className="text-sm text-stone-600 leading-relaxed">{alert.message}</p>
+                  <p className="text-sm text-ink-600 leading-relaxed">{alert.message}</p>
                   {alert.created_at && (
-                    <p className="text-xs text-stone-400 mt-1">
+                    <p className="text-xs text-ink-500 mt-1.5">
                       {formatDate(alert.created_at)}
                     </p>
                   )}
@@ -186,9 +180,9 @@ export default function AlertsPage() {
                     onClick={() => markRead.mutate(alert.id)}
                     disabled={markRead.isPending}
                     aria-label="Mark as read"
-                    className="flex-shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-white/60 transition-colors disabled:opacity-50"
+                    className="flex-shrink-0 p-1.5 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-surface-subtle transition-colors disabled:opacity-50"
                   >
-                    <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    <X className="w-4 h-4" strokeWidth={2.5} />
                   </button>
                 )}
               </div>
@@ -197,53 +191,60 @@ export default function AlertsPage() {
         </div>
       )}
 
-      {/* Alert rules reference */}
+      {/* Alert rules reference — single-row list */}
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">Alert Rules</h2>
+          <span className="text-xs text-ink-500">Automatically generated</span>
         </div>
-        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <ul className="divide-y divide-surface-divider">
           {[
             {
               type: "low_stock",
               label: "Low Stock",
               desc: "Material stock falls below its reorder level",
               href: "/materials",
+              color: "bg-warning-500",
             },
             {
               type: "task_delayed",
               label: "Task Delayed",
               desc: "A task is behind schedule; successors may be affected",
               href: "/schedule",
+              color: "bg-danger-500",
             },
             {
               type: "budget_overrun",
               label: "Budget Risk",
-              desc: "AI forecast predicts final cost exceeds total budget",
+              desc: "AI forecast predicts final cost will exceed the total budget",
               href: "/costs",
+              color: "bg-danger-600",
             },
             {
               type: "weather_risk",
               label: "Weather Alert",
-              desc: "High rain probability for weather-sensitive tasks",
+              desc: "High rain probability coincides with weather-sensitive tasks",
               href: "/schedule",
+              color: "bg-info-500",
             },
           ].map((item) => (
-            <Link
-              key={item.type}
-              href={item.href}
-              className="flex items-start gap-2.5 p-3 rounded-lg hover:bg-stone-50 transition-colors group"
-            >
-              <span className="w-2 h-2 rounded-full bg-stone-300 mt-1.5 flex-shrink-0 group-hover:bg-brand-400 transition-colors" />
-              <div>
-                <p className="font-semibold text-stone-700 group-hover:text-brand-700 transition-colors">
-                  {item.label}
-                </p>
-                <p className="text-xs text-stone-400 mt-0.5">{item.desc}</p>
-              </div>
-            </Link>
+            <li key={item.type}>
+              <Link
+                href={item.href}
+                className="flex items-center gap-4 px-6 py-3.5 hover:bg-surface-subtle transition-colors group"
+              >
+                <span className={`status-dot ${item.color} flex-shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-ink-900 group-hover:text-ink-900 transition-colors">
+                    {item.label}
+                  </span>
+                  <span className="text-xs text-ink-500 ml-3">{item.desc}</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-ink-400 group-hover:text-ink-900 transition-colors flex-shrink-0" strokeWidth={2} />
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   );

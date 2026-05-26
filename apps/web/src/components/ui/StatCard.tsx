@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 type Tone = "orange" | "green" | "red" | "amber" | "violet" | "sky" | "neutral";
 
@@ -8,42 +9,63 @@ interface StatCardProps {
   value: string;
   sub?: string;
   tone?: Tone;
-  icon?: string;     // legacy — accepted but not used
-  color?: string;    // legacy — accepted but not used
   Icon?: LucideIcon;
   trend?: "up" | "down" | "flat";
+  trendLabel?: string;
+  /** Legacy props — accepted but not used */
+  icon?: string;
+  color?: string;
 }
 
-const TONE_MAP: Record<Tone, { icon: string; value: string; bg: string }> = {
-  orange:  { icon: "text-brand-600", value: "text-brand-600", bg: "bg-brand-50"  },
-  green:   { icon: "text-green-600", value: "text-green-700", bg: "bg-green-50"  },
-  red:     { icon: "text-red-500",   value: "text-red-700",   bg: "bg-red-50"    },
-  amber:   { icon: "text-amber-600", value: "text-amber-700", bg: "bg-amber-50"  },
-  violet:  { icon: "text-violet-600",value: "text-violet-700",bg: "bg-violet-50" },
-  sky:     { icon: "text-sky-600",   value: "text-sky-700",   bg: "bg-sky-50"    },
-  neutral: { icon: "text-stone-400", value: "text-stone-700", bg: "bg-stone-100" },
+// Untitled UI palette — neutral foundation with status-color accents
+const ICON_COLOR: Record<Tone, string> = {
+  orange:  "text-ink-700 bg-surface-subtle",
+  green:   "text-success-600 bg-success-50",
+  red:     "text-danger-500 bg-danger-50",
+  amber:   "text-warning-600 bg-warning-50",
+  violet:  "text-ink-700 bg-surface-subtle",
+  sky:     "text-info-600 bg-info-50",
+  neutral: "text-ink-500 bg-surface-subtle",
 };
 
-export function StatCard({ label, value, sub, tone = "neutral", Icon }: StatCardProps) {
-  const t = TONE_MAP[tone];
+export function StatCard({ label, value, sub, tone = "neutral", Icon, trend, trendLabel }: StatCardProps) {
+  const iconClass = ICON_COLOR[tone];
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200/80 shadow-sm p-5 hover:shadow-md transition-shadow duration-150">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider leading-tight">
-          {label}
-        </p>
+    <div className="bg-white rounded-xl border border-surface-border p-5 sm:p-6">
+      {/* Header row: label + icon */}
+      <div className="flex items-start justify-between gap-3 mb-4">
         {Icon && (
-          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", t.bg)}>
-            <Icon className={cn("w-4 h-4", t.icon)} strokeWidth={2} />
+          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", iconClass)}>
+            <Icon className="w-5 h-5" strokeWidth={1.75} />
           </div>
         )}
+        {trend && (
+          <span className={cn(
+            "inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full",
+            trend === "up"   ? "text-success-700 bg-success-50" :
+            trend === "down" ? "text-danger-700 bg-danger-50" :
+                               "text-ink-500 bg-surface-subtle"
+          )}>
+            {trend === "up"   ? <TrendingUp className="w-3 h-3" strokeWidth={2} /> :
+             trend === "down" ? <TrendingDown className="w-3 h-3" strokeWidth={2} /> :
+                                <Minus className="w-3 h-3" strokeWidth={2} />}
+            {trendLabel}
+          </span>
+        )}
       </div>
-      <p className={cn("text-2xl font-bold mt-2.5 leading-none tracking-tight", t.value)}>
+
+      {/* Label */}
+      <p className="text-sm font-medium text-ink-600">{label}</p>
+
+      {/* Value */}
+      <p className="text-3xl font-bold leading-tight tracking-tight tabular-nums text-ink-900 mt-1.5">
         {value}
       </p>
+
+      {/* Sub */}
       {sub && (
-        <p className="text-xs text-stone-400 mt-1.5 leading-snug">{sub}</p>
+        <p className="text-sm text-ink-500 mt-1.5 truncate">{sub}</p>
       )}
     </div>
   );

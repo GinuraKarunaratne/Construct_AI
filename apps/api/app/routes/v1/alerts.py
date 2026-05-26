@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from app.core.deps import DbSession, CurrentUserId
@@ -9,11 +9,23 @@ router = APIRouter(tags=["alerts"])
 
 
 @router.get("/projects/{project_id}/alerts", response_model=list[AlertOut])
-def list_alerts(project_id: int, db: DbSession, user_id: CurrentUserId, unread_only: bool = False):
+def list_alerts(
+    project_id: int,
+    db: DbSession,
+    user_id: CurrentUserId,
+    unread_only: bool = False,
+    severity: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
     q = select(Alert).where(Alert.project_id == project_id)
     if unread_only:
         q = q.where(Alert.is_read == False)  # noqa: E712
-    alerts = db.execute(q.order_by(Alert.created_at.desc())).scalars().all()
+    if severity:
+        q = q.where(Alert.severity == severity)
+    alerts = db.execute(
+        q.order_by(Alert.created_at.desc()).offset(skip).limit(limit)
+    ).scalars().all()
     return [AlertOut.model_validate(a) for a in alerts]
 
 

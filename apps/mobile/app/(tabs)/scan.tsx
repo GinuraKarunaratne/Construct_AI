@@ -13,6 +13,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { COLORS, SPACING } from "@/lib/constants";
 import { apiClient } from "@/services/api";
+import { useProject } from "@/context/ProjectContext";
 
 interface AttendanceOut {
   id: number;
@@ -33,19 +34,13 @@ type ScanState = "idle" | "scanning" | "processing" | "success" | "error" | "man
 
 export default function ScanScreen() {
   const qc = useQueryClient();
+  const { selectedProjectId: projectId } = useProject();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [lastResult, setLastResult] = useState<{ workerCode: string; name?: string; date?: string } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [manualCode, setManualCode] = useState("");
   const scanLockRef = useRef(false);
-
-  // Fetch projects to get projectId
-  const { data: projects } = useQuery({
-    queryKey: ["mobile-projects"],
-    queryFn: () => apiClient.get<Array<{ id: number }>>("/projects").then(r => r.data),
-  });
-  const projectId = projects?.[0]?.id;
 
   // Fetch workers for name lookup
   const { data: workers } = useQuery({

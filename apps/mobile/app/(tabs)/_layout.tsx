@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { TouchableOpacity, Text, View } from "react-native";
 import { COLORS } from "@/lib/constants";
 import { useAuth } from "@/context/AuthContext";
+import { ProjectPicker } from "@/components/ProjectPicker";
 
 export default function TabsLayout() {
   const { user, logout } = useAuth();
@@ -30,7 +31,7 @@ export default function TabsLayout() {
         ),
         headerLeft: () =>
           user ? (
-            <View style={{ marginLeft: 16, flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ marginLeft: 16, flexDirection: "row", alignItems: "center", gap: 8 }}>
               <View style={{
                 width: 28, height: 28, borderRadius: 14,
                 backgroundColor: COLORS.primary + "22",
@@ -40,12 +41,15 @@ export default function TabsLayout() {
                   {user.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
                 </Text>
               </View>
+              <ProjectPicker />
             </View>
           ) : null,
       }}
     >
       <Tabs.Screen name="index"      options={{ title: "Home"       }} />
       <Tabs.Screen name="tasks"      options={{ title: "Tasks"      }} />
+      <Tabs.Screen name="costs"      options={{ title: "Costs"      }} />
+      <Tabs.Screen name="materials"  options={{ title: "Materials"  }} />
       <Tabs.Screen name="scan"       options={{ title: "Scan"       }} />
       <Tabs.Screen name="attendance" options={{ title: "Attendance" }} />
       <Tabs.Screen name="alerts"     options={{ title: "Alerts"     }} />
